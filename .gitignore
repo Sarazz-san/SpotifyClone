@@ -20,7 +20,8 @@ yarn-error.log*
 .next
 .nuxt
 .cache/
-package-lock.json
+# package-lock.json (DO NOT IGNORE, required for npm ci)
+# package-lock.json
 # On garde yarn.lock si on utilise yarn, mais ici on semble utiliser npm (vu package-lock.json)
 
 # --- React Native ---
