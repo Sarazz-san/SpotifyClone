@@ -1,0 +1,96 @@
+# --- System Files ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# --- Node.js ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+.stylelintcache
+.prettiercache
+.parcel-cache
+.next
+.nuxt
+.cache/
+package-lock.json
+# On garde yarn.lock si on utilise yarn, mais ici on semble utiliser npm (vu package-lock.json)
+
+# --- React Native ---
+.metro-health-check*
+*.jsbundle
+*.source-map
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# --- Android ---
+**/.gradle
+**/android/app/build
+**/android/build
+**/local.properties
+**/generated
+**/.externalNativeBuild
+**/.cxx
+**/.kotlin
+*.iml
+*.hprof
+*.keystore
+!debug.keystore
+google-services.json
+
+# --- iOS ---
+ios/build/
+ios/DerivedData/
+ios/Pods/
+ios/vendor/bundle/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.xcuserstate
+*.ipa
+*.ext.local
+**/.xcode.env.local
+
+# --- IDEs ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+
+# --- Testing / Coverage ---
+/coverage
+/__tests__/__snapshots__/
+
+# --- Fastlane ---
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots
+**/fastlane/test_output
+
+# --- Ruby ---
+.bundle/
+vendor/bundle/
