@@ -26,6 +26,19 @@ jobs:
         run: |
           npm ci
 
+      - name: Patch react-native-document-picker
+        run: |
+          FILE="node_modules/react-native-document-picker/android/src/main/java/com/reactnativedocumentpicker/RNDocumentPickerModule.java"
+          # Remove problematic import
+          sed -i 's/import com.facebook.react.bridge.GuardedResultAsyncTask;//' $FILE
+          # Replace GuardedResultAsyncTask with a simple AsyncTask approach (or similar)
+          # This is a common fix for RN 0.73+ compatibility
+          sed -i 's/extends GuardedResultAsyncTask<ReadableArray>/extends android.os.AsyncTask<Void, Void, ReadableArray>/' $FILE
+          sed -i 's/protected ReadableArray doInBackgroundGuarded()/protected ReadableArray doInBackground(Void... voids)/' $FILE
+          sed -i 's/protected void onPostExecuteGuarded(ReadableArray result)/protected void onPostExecute(ReadableArray result)/' $FILE
+          # Fix constructor call
+          sed -i 's/super(reactContext);/ \/\/ super(reactContext);/' $FILE
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
