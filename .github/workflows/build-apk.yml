@@ -29,20 +29,23 @@ jobs:
       - name: Patch react-native-document-picker
         run: |
           FILE="node_modules/react-native-document-picker/android/src/main/java/com/reactnativedocumentpicker/RNDocumentPickerModule.java"
-          # Remove problematic import
+          # 1. Remove problematic import
           sed -i 's/import com.facebook.react.bridge.GuardedResultAsyncTask;//' $FILE
           
-          # Replace GuardedResultAsyncTask with standard AsyncTask
+          # 2. Fix the Inner Class ProcessDataTask (Replace GuardedResultAsyncTask with standard AsyncTask)
           sed -i 's/extends GuardedResultAsyncTask<ReadableArray>/extends android.os.AsyncTask<Void, Void, ReadableArray>/' $FILE
-          sed -i 's/protected ReadableArray doInBackgroundGuarded()/protected ReadableArray doInBackground(Void... voids)/' $FILE
-          sed -i 's/protected void onPostExecuteGuarded(ReadableArray result)/protected void onPostExecute(ReadableArray result)/' $FILE
           
-          # Fix constructor calls and super calls (commenting out problematic ones)
-          sed -i 's/super(reactContext);/\/\/ super(reactContext);/' $FILE
-          sed -i 's/super(reactContext.getExceptionHandler());/\/\/ super();/' $FILE
+          # 3. Remove the @Override annotations inside the Task to avoid signature conflicts
+          # We search for the methods and remove the @Override line just above them
+          sed -i '/@Override/{N;s/@Override\n.*doInBackgroundGuarded/protected ReadableArray doInBackground(Void... voids)/}' $FILE
+          sed -i '/@Override/{N;s/@Override\n.*onPostExecuteGuarded/protected void onPostExecute(ReadableArray result)/}' $FILE
           
-          # Ensure RNDocumentPickerModule constructor is correctly calling super
-          sed -i 's/public RNDocumentPickerModule(ReactApplicationContext reactContext) {/public RNDocumentPickerModule(ReactApplicationContext reactContext) { super(reactContext);/' $FILE
+          # 4. Specific fix for the Task constructor (comment out ONLY the super call in ProcessDataTask)
+          # We target the line that follows the ProcessDataTask constructor declaration
+          sed -i '/ProcessDataTask(ReactApplicationContext/,/}/{s/super(reactContext);/\/\/ super(reactContext);/}' $FILE
+          sed -i '/ProcessDataTask(ReactApplicationContext/,/}/{s/super(reactContext.getExceptionHandler());/\/\/ super();/}' $FILE
+
+      - name: Setup Java
 
       - name: Setup Java
         uses: actions/setup-java@v4
