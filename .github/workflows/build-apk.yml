@@ -46,8 +46,6 @@ jobs:
           sed -i '/ProcessDataTask(ReactApplicationContext/,/}/{s/super(reactContext.getExceptionHandler());/\/\/ super();/}' $FILE
 
       - name: Setup Java
-
-      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
