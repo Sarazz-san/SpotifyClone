@@ -38,11 +38,15 @@ export function SearchScreen() {
   const results = useMemo(() => {
     const value = query.trim().toLowerCase();
     if (!value) return [];
-    return tracks.filter(
-      track =>
+    return tracks.filter(track => {
+      const genre = track.genre ? String(track.genre).toLowerCase() : '';
+      return (
         track.title.toLowerCase().includes(value) ||
-        track.artist.toLowerCase().includes(value),
-    );
+        track.artist.toLowerCase().includes(value) ||
+        track.album.toLowerCase().includes(value) ||
+        genre.includes(value)
+      );
+    });
   }, [query, tracks]);
 
   const handleSearchSubmit = () => {

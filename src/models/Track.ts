@@ -8,4 +8,5 @@ export type Track = {
   durationMs: number;
   cover: ImageSourcePropType;
   audioUrl: string;
+  genre?: string;
 };

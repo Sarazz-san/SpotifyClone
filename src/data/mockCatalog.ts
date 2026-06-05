@@ -16,6 +16,7 @@ export const tracks: Track[] = [
     durationMs: 214000,
     cover: coverAbstract,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    genre: 'Electronic',
   },
   {
     id: 'midnight-circuit',
@@ -25,6 +26,7 @@ export const tracks: Track[] = [
     durationMs: 189000,
     cover: coverSynthwave,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    genre: 'Electronic',
   },
   {
     id: 'daily-pulse',
@@ -34,6 +36,7 @@ export const tracks: Track[] = [
     durationMs: 132000,
     cover: coverPodcast,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+    genre: 'Podcast',
   },
   {
     id: 'late-night-vibes',
@@ -43,6 +46,7 @@ export const tracks: Track[] = [
     durationMs: 241000,
     cover: coverDaylist,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+    genre: 'Hip-Hop',
   },
 ];
 
