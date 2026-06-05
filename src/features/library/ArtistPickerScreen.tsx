@@ -1,12 +1,11 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, TextInput, FlatList} from 'react-native';
+import {StyleSheet, Text, View, TouchableOpacity, Image, TextInput, FlatList} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation} from '@react-navigation/native';
 import {getFirestore, collection, getDocs} from '@react-native-firebase/firestore';
 
 import {colors} from '../../constants/colors';
 import {spacing, radius} from '../../constants/spacing';
-import {typography} from '../../constants/typography';
 import {useCatalog} from '../catalog/CatalogContext';
 
 type Artist = {

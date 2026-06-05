@@ -51,8 +51,10 @@ export function LibraryScreen() {
         id: name,
         title: name,
         artist: 'Artiste',
-        cover: track?.cover,
-        coverUrl: (track as any)?.coverUrl,
+        album: track?.album || 'Artist',
+        durationMs: track?.durationMs || 0,
+        cover: track?.cover || require('../../assets/images/logo_spotify_green.png'),
+        audioUrl: track?.audioUrl || '',
       };
     });
   }, [tracks]);

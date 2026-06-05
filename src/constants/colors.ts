@@ -8,6 +8,7 @@ export const colors = {
   primaryContainer: '#7c3aed',
   primaryDeep: '#4c1d95',
   text: '#e2e2e2',
+  textSecondary: '#bccbb9',
   textMuted: '#bccbb9',
   textDim: '#8f9a8d',
   black: '#000000',

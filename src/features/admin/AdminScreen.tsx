@@ -41,7 +41,9 @@ export function AdminScreen() {
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [isLoading, setIsLoading] = useState(false);
   const [stats, setStats] = useState({tracks: 0, playlists: 0, users: 0, categories: 0});
-  const [categories, setCategories] = useState<{id: string; name: string}[]>([]);
+  const [categories, setCategories] = useState<{id: string; name: string; imageUrl?: string; color?: string}[]>([]);
+const [categoryImage, setCategoryImage] = useState<{uri: string; name: string} | null>(null);
+const [genreInput, setGenreInput] = useState('');
   const [userList, setUserList] = useState<AppUser[]>([]);
   const {tracks: allTracks, playlists: allPlaylists, refresh} = useCatalog();
 
@@ -77,8 +79,8 @@ export function AdminScreen() {
       setCategories(cats);
       setUserList(u);
       if (cats.length > 0) setSelectedCategory(cats[0].name);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -104,7 +106,7 @@ export function AdminScreen() {
       setArtistName(''); setArtistCover(null);
       setActiveView('dashboard');
       loadInitialData();
-    } catch (e) {
+    } catch {
       Alert.alert('Erreur', 'Échec de l’ajout');
     } finally {
       setIsLoading(false);
@@ -127,11 +129,31 @@ export function AdminScreen() {
     ]);
   };
 
+  const handlePickCategoryImage = async () => {
+    const res = await launchImageLibrary({mediaType: 'photo'});
+    if (res.assets?.[0]) {
+      setCategoryImage({uri: res.assets[0].uri!, name: res.assets[0].fileName || 'cat.jpg'});
+    }
+  };
+
   const handleAddCategory = async () => {
     if (!newCatName) return;
-    await addCategory(newCatName);
-    setNewCatName('');
-    loadInitialData();
+    setIsLoading(true);
+    try {
+      let imageUrl: string | undefined = undefined;
+      if (categoryImage) {
+        imageUrl = await uploadToCloudinary(categoryImage.uri, 'image', p => setUploadProgress(p));
+      }
+      await addCategory(newCatName, imageUrl);
+      setNewCatName('');
+      setCategoryImage(null);
+      loadInitialData();
+    } catch (error) {
+      Alert.alert('Erreur', 'Échec de l’ajout de la catégorie');
+    } finally {
+      setIsLoading(false);
+      setUploadProgress(0);
+    }
   };
 
   const handlePickAudio = async () => {
@@ -175,7 +197,7 @@ export function AdminScreen() {
       setPTitle(''); setPSubtitle(''); setPCoverFile(null);
       refresh();
       loadInitialData();
-    } catch (e) {
+    } catch {
       Alert.alert('Erreur', 'Échec de la création');
     } finally {
       setIsLoading(false);
@@ -207,13 +229,13 @@ export function AdminScreen() {
     try {
       const coverUrl = await uploadToCloudinary(coverFile.uri, 'image', p => setUploadProgress(p * 0.2));
       const audioUrl = await uploadToCloudinary(audioFile.uri, 'video', p => setUploadProgress(0.2 + p * 0.8));
-      await createTrack({title, artist, album, category: selectedCategory, audioUrl, coverUrl, durationMs: 180000});
+      await createTrack({title, artist, album, category: selectedCategory, genre: genreInput || undefined, audioUrl, coverUrl, durationMs: 180000});
       Alert.alert('Succès', 'Morceau publié !');
       setTitle(''); setArtist(''); setAlbum(''); setAudioFile(null); setCoverFile(null);
       setActiveView('dashboard');
       refresh();
       loadInitialData();
-    } catch (e) {
+    } catch {
       Alert.alert('Erreur', 'Échec de la publication');
     } finally {
       setIsLoading(false);
@@ -303,7 +325,7 @@ export function AdminScreen() {
         <TextInput placeholder="Album" placeholderTextColor={colors.textMuted} style={styles.input} value={album} onChangeText={setAlbum} />
         
         <View style={styles.pickerContainer}>
-          <Text style={styles.label}>Genre :</Text>
+          <Text style={styles.label}>Catégorie :</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catPicker}>
             {categories.map(c => (
               <TouchableOpacity 
@@ -316,6 +338,8 @@ export function AdminScreen() {
             ))}
           </ScrollView>
         </View>
+
+        <TextInput placeholder="Genre (Hip-Hop, Electronic...)" placeholderTextColor={colors.textMuted} style={styles.input} value={genreInput} onChangeText={setGenreInput} />
 
         <View style={styles.fileRow}>
           <TouchableOpacity style={styles.fileBtn} onPress={handlePickAudio}>
@@ -377,19 +401,23 @@ export function AdminScreen() {
       
       <View style={styles.addCatRow}>
         <TextInput 
-          placeholder="Nouveau genre..." 
+          placeholder="Nouvelle catégorie..." 
           placeholderTextColor={colors.textMuted} 
           style={[styles.input, styles.flex1]} 
           value={newCatName} 
           onChangeText={setNewCatName} 
         />
+        <TouchableOpacity style={[styles.fileBtn, {marginLeft: spacing.md}]} onPress={handlePickCategoryImage}>
+          <Icon name="image" size={20} color={categoryImage ? colors.primary : colors.white} />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.squareBtn} onPress={handleAddCategory}>
-          <Icon name="plus" size={24} color={colors.white} />
+          {isLoading ? <ActivityIndicator color={colors.white} /> : <Icon name="plus" size={24} color={colors.white} />}
         </TouchableOpacity>
       </View>
 
       {categories.map(c => (
         <View key={c.id} style={styles.catItem}>
+          {c.imageUrl ? <Icon name="image" size={20} color={colors.textMuted} /> : null}
           <Text style={styles.catItemName}>{c.name}</Text>
           <TouchableOpacity onPress={() => deleteCategory(c.id).then(loadInitialData)}>
             <Icon name="close-circle" size={20} color={colors.textMuted} />

@@ -14,6 +14,7 @@ import {isFirebaseConfigured} from '../../firebase/firebaseAvailability';
 type CatalogContextValue = Catalog & {
   isLoading: boolean;
   refresh: () => Promise<void>;
+  genres: string[];
 };
 
 const CatalogContext = createContext<CatalogContextValue | null>(null);
@@ -37,13 +38,22 @@ export function CatalogProvider({children}: {children: React.ReactNode}) {
     refresh();
   }, [refresh]);
 
+  const genres = useMemo(() => {
+    const set = new Set<string>();
+    catalog.tracks.forEach(t => {
+      if (t.genre) set.add(String(t.genre));
+    });
+    return Array.from(set);
+  }, [catalog.tracks]);
+
   const value = useMemo(
     () => ({
       ...catalog,
       isLoading,
       refresh,
+      genres,
     }),
-    [catalog, isLoading, refresh],
+    [catalog, isLoading, refresh, genres],
   );
 
   return (

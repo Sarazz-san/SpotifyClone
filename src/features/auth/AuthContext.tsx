@@ -104,7 +104,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
         setUser(null);
       },
     }),
-    [error, isLoading, user],
+    [error, isInitializing, isLoading, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

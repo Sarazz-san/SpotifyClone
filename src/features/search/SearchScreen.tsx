@@ -1,6 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import {CategoryTile} from '../../components/CategoryTile';
@@ -22,13 +22,16 @@ import {usePlayer} from '../player/PlayerContext';
 
 import {useAuth} from '../auth/AuthContext';
 import {deleteSearchQuery, saveSearchQuery, subscribeToSearchHistory} from '../user/userService';
+import type {RootStackParamList} from '../../app/navigationTypes';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 export function SearchScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const {user} = useAuth();
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
-  const {categories, tracks} = useCatalog();
+  const {categories, tracks, genres} = useCatalog();
   const {playTrack} = usePlayer();
 
   useEffect(() => {
@@ -58,7 +61,7 @@ export function SearchScreen() {
   if (isFocused) {
     return (
       <View style={styles.container}>
-        <View style={[styles.header, {paddingHorizontal: spacing.lg, paddingTop: 50}]}>
+        <View style={[styles.header, styles.focusedHeader]}>
           <TouchableOpacity onPress={() => { setIsFocused(false); setQuery(''); }}>
             <Icon name="arrow-left" size={28} color={colors.white} />
           </TouchableOpacity>
@@ -79,8 +82,15 @@ export function SearchScreen() {
               <Text style={styles.sectionTitle}>Recents</Text>
               {history.map(item => (
                 <View key={item} style={styles.historyItem}>
-                  <Icon name="magnify" size={24} color={colors.textMuted} style={{marginRight: spacing.md}} />
-                  <TouchableOpacity style={{flex: 1}} onPress={() => setQuery(item)}>
+                  <Icon
+                    name="magnify"
+                    size={24}
+                    color={colors.textMuted}
+                    style={styles.historyIcon}
+                  />
+                  <TouchableOpacity
+                    style={styles.historyTextButton}
+                    onPress={() => setQuery(item)}>
                     <Text style={styles.historyTitle}>{item}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => user && deleteSearchQuery(user.id, item)}>
@@ -126,22 +136,17 @@ export function SearchScreen() {
       </Pressable>
 
       <Text style={styles.sectionTitle}>Discover something new</Text>
-      {categories.length ? (
+      {genres.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {categories.slice(0, 5).map(category => (
-            <Pressable key={category.id} style={styles.discoveryCard} onPress={() => {
-              // navigate to Genre screen
-              // use navigation container hook
-              // set query to category and open focused search if desired
-              // navigation handled below via onPress prop in CategoryTile grid
-            }}>
+          {genres.slice(0, 5).map((g, i) => (
+            <Pressable key={`genre-${i}`} style={styles.discoveryCard} onPress={() => navigation.navigate('Genre', {genreName: g})}>
               <Icon
                 color="rgba(255,255,255,0.65)"
                 name="play-box-outline"
                 size={72}
               />
               <Text numberOfLines={1} style={styles.discoveryText}>
-                #{category.name.toLowerCase()}
+                #{String(g).toLowerCase()}
               </Text>
             </Pressable>
           ))}
@@ -156,17 +161,13 @@ export function SearchScreen() {
       <Text style={styles.sectionTitle}>Browse all</Text>
       {categories.length ? (
         <View style={styles.categoryGrid}>
-          {categories.map((category, index) => (
+          {genres.map((g, index) => (
             <CategoryTile 
               index={index} 
-              key={category.id} 
-              item={category} 
+              key={`genre-${index}`} 
+              item={{id: `genre-${index}`, name: String(g)}} 
               onPress={() => {
-                // navigate to Genre screen
-                // use navigation from react-navigation
-                // lazy import to avoid circular deps
-                const nav = require('@react-navigation/native').useNavigation();
-                nav.navigate('Genre', {genreName: category.name});
+                navigation.navigate('Genre', {genreName: String(g)});
               }}
             />
           ))}
@@ -211,6 +212,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+  },
+  focusedHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: 50,
   },
   avatar: {
     width: 42,
@@ -284,6 +289,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.lg,
+  },
+  historyIcon: {
+    marginRight: spacing.md,
+  },
+  historyTextButton: {
+    flex: 1,
   },
   historyCover: {
     width: 52,

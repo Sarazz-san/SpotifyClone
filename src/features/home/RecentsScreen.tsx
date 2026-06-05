@@ -6,7 +6,6 @@ import {useNavigation} from '@react-navigation/native';
 import {colors} from '../../constants/colors';
 import {spacing, radius} from '../../constants/spacing';
 import {typography} from '../../constants/typography';
-import {useCatalog} from '../catalog/CatalogContext';
 import {CategoryChip} from '../../components/CategoryChip';
 
 import {useAuth} from '../auth/AuthContext';
@@ -29,7 +28,7 @@ export function RecentsScreen() {
           <Icon name="arrow-left" size={28} color={colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Recents</Text>
-        <View style={{width: 28}} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -41,7 +40,7 @@ export function RecentsScreen() {
 
         {recentlyPlayed.map((item, index) => (
           <TouchableOpacity key={`${item.id}-${index}`} style={styles.itemRow}>
-            <Image source={typeof item.cover === 'number' ? item.cover : {uri: item.coverUrl}} style={styles.cover} />
+            <Image source={item.cover} style={styles.cover} />
             <View style={styles.itemInfo}>
               <Text style={styles.itemTitle}>{item.title}</Text>
               <Text style={styles.itemSubtitle}>Song • {item.artist}</Text>
@@ -65,6 +64,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   headerTitle: { color: colors.white, fontSize: typography.body, fontWeight: '900' },
+  headerSpacer: { width: 28 },
   content: { padding: spacing.lg },
   filterRow: { marginBottom: spacing.xl },
   sectionTitle: { color: colors.white, fontSize: typography.title, fontWeight: '900', marginBottom: spacing.lg },

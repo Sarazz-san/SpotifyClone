@@ -1,6 +1,6 @@
-import firestore, { getFirestore, collection, query, limit, getDocs } from '@react-native-firebase/firestore';
+import { getFirestore, collection, query, limit, getDocs } from '@react-native-firebase/firestore';
 
-import {categories as mockCategories, playlists, tracks} from '../../data/mockCatalog';
+import {siteCategories, playlists, tracks} from '../../data/mockCatalog';
 import {firebaseCollections} from '../../firebase/firebaseCollections';
 import {isFirebaseConfigured} from '../../firebase/firebaseAvailability';
 import type {Playlist} from '../../models/Playlist';
@@ -37,6 +37,7 @@ type FirestoreTrack = {
   durationMs?: number;
   coverUrl?: string;
   audioUrl?: string;
+  genre?: string;
 };
 
 type FirestorePlaylist = {
@@ -49,7 +50,7 @@ type FirestorePlaylist = {
 };
 
 export const demoCatalog: Catalog = {
-  categories: mockCategories.map((name, i) => ({ id: `cat-${i}`, name })),
+  categories: siteCategories.map((name, i) => ({ id: `cat-${i}`, name })),
   playlists,
   tracks,
   source: 'demo',
@@ -73,6 +74,7 @@ function mapTrack(id: string, data: FirestoreTrack): Track {
     durationMs: data.durationMs || 180000,
     cover: data.coverUrl ? {uri: data.coverUrl} : tracks[0].cover,
     audioUrl: data.audioUrl || '',
+    genre: (data as any).genre,
   };
 }
 

@@ -1,4 +1,4 @@
-import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, updateDoc, arrayUnion, arrayRemove, serverTimestamp, query, limit } from '@react-native-firebase/firestore';
+import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, updateDoc, arrayUnion, arrayRemove, serverTimestamp } from '@react-native-firebase/firestore';
 import {firebaseCollections} from '../../firebase/firebaseCollections';
 import {AppUser} from '../auth/authService';
 
@@ -48,7 +48,8 @@ export async function createTrack(trackData: {
   title: string;
   artist: string;
   album: string;
-  category: string;
+  category: string; // site category (Music, Podcasts...)
+  genre?: string; // musical genre (Hip-Hop, Electronic...)
   audioUrl: string;
   coverUrl: string;
   durationMs: number;
@@ -85,19 +86,23 @@ export async function getStats() {
   };
 }
 
-export async function getCategories(): Promise<{id: string; name: string}[]> {
+export async function getCategories(): Promise<{id: string; name: string; imageUrl?: string; color?: string}[]> {
   const db = getFirestore();
   const snapshot = await getDocs(collection(db, firebaseCollections.categories));
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    name: doc.data().name,
+  return snapshot.docs.map(categoryDocument => ({
+    id: categoryDocument.id,
+    name: categoryDocument.data().name,
+    imageUrl: categoryDocument.data().imageUrl,
+    color: categoryDocument.data().color,
   }));
 }
 
-export async function addCategory(name: string) {
+export async function addCategory(name: string, imageUrl?: string, color?: string) {
   const db = getFirestore();
   await setDoc(doc(collection(db, firebaseCollections.categories)), {
     name,
+    imageUrl,
+    color,
     createdAt: serverTimestamp(),
   });
 }
@@ -147,9 +152,9 @@ export async function removeTrackFromPlaylist(playlistId: string, trackId: strin
 export async function getUsers(): Promise<AppUser[]> {
   const db = getFirestore();
   const snapshot = await getDocs(collection(db, firebaseCollections.users));
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
+  return snapshot.docs.map(userDocument => ({
+    id: userDocument.id,
+    ...userDocument.data(),
   } as AppUser));
 }
 

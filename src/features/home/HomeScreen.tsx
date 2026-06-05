@@ -17,7 +17,6 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {AlbumCard} from '../../components/AlbumCard';
 import {CategoryChip} from '../../components/CategoryChip';
 import {EmptyState} from '../../components/EmptyState';
-import {IconButton} from '../../components/IconButton';
 import {colors} from '../../constants/colors';
 import {radius, spacing} from '../../constants/spacing';
 import {typography} from '../../constants/typography';
@@ -46,8 +45,6 @@ export function HomeScreen() {
     categories,
     isLoading: isCatalogLoading,
     playlists,
-    refresh,
-    source,
     tracks: allTracks,
   } = useCatalog();
   const {currentTrack, playTrack} = usePlayer();

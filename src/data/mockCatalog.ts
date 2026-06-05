@@ -95,12 +95,15 @@ export const playlists: Playlist[] = [
   },
 ];
 
-export const categories = [
+export const siteCategories = [
   'Music',
   'Podcasts',
   'Live Events',
   'Made For You',
   'New Releases',
+];
+
+export const genres = [
   'Hip-Hop',
   'Electronic',
   'Focus',

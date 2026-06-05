@@ -23,6 +23,7 @@ declare module 'react-native-video' {
     onLoad?: (data: OnLoadData) => void;
     onProgress?: (data: OnProgressData) => void;
     paused?: boolean;
+    playWhenInactive?: boolean;
     playInBackground?: boolean;
     progressUpdateInterval?: number;
     ref?: React.Ref<VideoRef>;

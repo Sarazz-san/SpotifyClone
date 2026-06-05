@@ -1,11 +1,8 @@
-import React, {useState} from 'react';
+import React from 'react';
 import {
-  ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -14,7 +11,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {colors} from '../../constants/colors';
 import {radius, spacing} from '../../constants/spacing';
 import {typography} from '../../constants/typography';
-import {getFirebaseStatus, seedDemoCatalog} from '../../firebase/firebaseService';
+import {getFirebaseStatus} from '../../firebase/firebaseService';
 
 const benefits = [
   'Streaming haute qualité',
@@ -23,27 +20,7 @@ const benefits = [
 ];
 
 export function PremiumScreen() {
-  const [isSeeding, setIsSeeding] = useState(false);
   const status = getFirebaseStatus();
-
-  const handleSeed = async () => {
-    setIsSeeding(true);
-    try {
-      const success = await seedDemoCatalog();
-      if (success) {
-        Alert.alert('Succès', 'Le catalogue a été initialisé avec succès.');
-      } else {
-        Alert.alert(
-          'Erreur',
-          'Impossible de charger les données. Vérifiez votre connexion.',
-        );
-      }
-    } catch (error) {
-      Alert.alert('Erreur', 'Une erreur inattendue est survenue.');
-    } finally {
-      setIsSeeding(false);
-    }
-  };
 
   return (
     <ScrollView
@@ -67,7 +44,9 @@ export function PremiumScreen() {
           <View
             style={[
               styles.statusIndicator,
-              {backgroundColor: status.mode === 'firebase' ? '#4CAF50' : '#FF9800'},
+              status.mode === 'firebase'
+                ? styles.statusOnline
+                : styles.statusOffline,
             ]}
           />
           <Text style={styles.statusText}>
@@ -138,7 +117,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: colors.white,
-    fontSize: typography.subheading,
+    fontSize: typography.title,
     fontWeight: '900',
     marginBottom: spacing.xs,
   },
@@ -163,14 +142,20 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
   },
+  statusOnline: {
+    backgroundColor: '#4CAF50',
+  },
+  statusOffline: {
+    backgroundColor: '#FF9800',
+  },
   statusText: {
     color: colors.white,
     fontSize: typography.body,
     fontWeight: '900',
   },
   statusDescription: {
-    color: colors.textSecondary,
-    fontSize: typography.caption,
+    color: colors.textMuted,
+    fontSize: typography.label,
     lineHeight: 18,
   },
   seedButton: {

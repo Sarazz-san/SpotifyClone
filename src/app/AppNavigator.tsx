@@ -1,5 +1,4 @@
 import React from 'react';
-import {ActivityIndicator, View} from 'react-native';
 import {NavigationContainer, DarkTheme} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 
@@ -33,12 +32,12 @@ const navigationTheme = {
 };
 
 export function AppNavigator() {
-  const {user, isInitializing} = useAuth();
+  const {user} = useAuth();
   const navigationRef = useNavigationContainerRef();
   const [routeName, setRouteName] = React.useState<string | undefined>();
 
   const onReady = () => {
-    setRouteName(navigationRef.getCurrentRoute()?.name);
+    setRouteName((navigationRef.getCurrentRoute() as {name?: string} | undefined)?.name);
   };
 
   // On retire le chargement infini pour afficher directement l'interface
@@ -57,7 +56,7 @@ export function AppNavigator() {
       ref={navigationRef}
       onReady={onReady}
       onStateChange={() => {
-        setRouteName(navigationRef.getCurrentRoute()?.name);
+        setRouteName((navigationRef.getCurrentRoute() as {name?: string} | undefined)?.name);
       }}
       theme={navigationTheme}
     >

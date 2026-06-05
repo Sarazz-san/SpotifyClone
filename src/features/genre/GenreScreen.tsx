@@ -12,6 +12,10 @@ type Props = {
   route: RouteProp<RootStackParamList, 'Genre'>;
 };
 
+function TrackSeparator() {
+  return <View style={styles.separator} />;
+}
+
 export function GenreScreen({route}: Props) {
   const {genreName} = route.params;
   const {tracks} = useCatalog();
@@ -28,8 +32,8 @@ export function GenreScreen({route}: Props) {
         data={filtered}
         keyExtractor={item => item.id}
         renderItem={({item}) => <TrackRow item={item} onPress={() => {}} />}
-        ItemSeparatorComponent={() => <View style={{height: spacing.md}} />}
-        contentContainerStyle={{padding: spacing.lg}}
+        ItemSeparatorComponent={TrackSeparator}
+        contentContainerStyle={styles.listContent}
       />
     </View>
   );
@@ -38,4 +42,6 @@ export function GenreScreen({route}: Props) {
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: colors.backgroundDeep},
   title: {color: colors.text, fontSize: 22, fontWeight: '900', padding: spacing.lg},
+  listContent: {padding: spacing.lg},
+  separator: {height: spacing.md},
 });

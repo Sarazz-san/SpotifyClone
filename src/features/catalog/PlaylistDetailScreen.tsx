@@ -15,7 +15,6 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {TrackRow} from '../../components/TrackRow';
 import {colors} from '../../constants/colors';
 import {radius, spacing} from '../../constants/spacing';
-import {typography} from '../../constants/typography';
 import {useCatalog} from './CatalogContext';
 import {usePlayer} from '../player/PlayerContext';
 import type {RootStackParamList} from '../../app/navigationTypes';
@@ -36,7 +35,7 @@ export function PlaylistDetailScreen() {
   if (!playlist) {
     return (
       <View style={styles.container}>
-        <Text style={colors.text}>Playlist non trouvée</Text>
+        <Text style={styles.notFoundText}>Playlist non trouvée</Text>
       </View>
     );
   }
@@ -56,7 +55,7 @@ export function PlaylistDetailScreen() {
           style={styles.header}
         >
           <Image 
-            source={typeof playlist.cover === 'number' ? playlist.cover : {uri: playlist.coverUrl}} 
+            source={playlist.cover} 
             style={styles.cover} 
           />
           <Text style={styles.title}>{playlist.title}</Text>
@@ -92,6 +91,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.backgroundDeep,
+  },
+  notFoundText: {
+    color: colors.text,
   },
   backButton: {
     position: 'absolute',

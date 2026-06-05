@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,7 +14,6 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {TrackRow} from '../../components/TrackRow';
 import {colors} from '../../constants/colors';
 import {radius, spacing} from '../../constants/spacing';
-import {typography} from '../../constants/typography';
 import {useCatalog} from '../catalog/CatalogContext';
 import {usePlayer} from '../player/PlayerContext';
 import type {RootStackParamList} from '../../app/navigationTypes';
@@ -25,7 +23,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export function LikedSongsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const {tracks} = useCatalog();
-  const {playTrack, currentTrack, toggleLike} = usePlayer();
+  const {playTrack, currentTrack} = usePlayer();
 
   // In a real app, we'd fetch this from a 'likedTracks' collection
   // For this version, we'll use the likedTrackIds from PlayerContext if we wanted to be perfectly accurate

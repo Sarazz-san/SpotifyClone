@@ -1,6 +1,6 @@
 import firestore from '@react-native-firebase/firestore';
 
-import {categories, playlists, tracks} from '../data/mockCatalog';
+import {siteCategories as categories, playlists, tracks} from '../data/mockCatalog';
 import {firebaseCollections} from './firebaseCollections';
 import {isFirebaseConfigured} from './firebaseAvailability';
 
