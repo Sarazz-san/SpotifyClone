@@ -11,6 +11,7 @@ import {PlaylistDetailScreen} from '../features/catalog/PlaylistDetailScreen';
 import {RecentsScreen} from '../features/home/RecentsScreen';
 import {ArtistPickerScreen} from '../features/library/ArtistPickerScreen';
 import {LikedSongsScreen} from '../features/library/LikedSongsScreen';
+import {GenreScreen} from '../features/genre/GenreScreen';
 import {AuthNavigator} from './AuthNavigator';
 import {MainTabs} from './MainTabs';
 import type {RootStackParamList} from './navigationTypes';
@@ -73,6 +74,7 @@ export function AppNavigator() {
             <Stack.Screen name="ArtistPicker" component={ArtistPickerScreen} />
             <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen} />
             <Stack.Screen name="LikedSongs" component={LikedSongsScreen} />
+            <Stack.Screen name="Genre" component={GenreScreen} />
           </>
         ) : (
           <Stack.Screen name="Auth" component={AuthNavigator} />

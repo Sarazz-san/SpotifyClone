@@ -129,7 +129,12 @@ export function SearchScreen() {
       {categories.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {categories.slice(0, 5).map(category => (
-            <Pressable key={category.id} style={styles.discoveryCard}>
+            <Pressable key={category.id} style={styles.discoveryCard} onPress={() => {
+              // navigate to Genre screen
+              // use navigation container hook
+              // set query to category and open focused search if desired
+              // navigation handled below via onPress prop in CategoryTile grid
+            }}>
               <Icon
                 color="rgba(255,255,255,0.65)"
                 name="play-box-outline"
@@ -157,8 +162,11 @@ export function SearchScreen() {
               key={category.id} 
               item={category} 
               onPress={() => {
-                setQuery(category.name);
-                setIsFocused(true);
+                // navigate to Genre screen
+                // use navigation from react-navigation
+                // lazy import to avoid circular deps
+                const nav = require('@react-navigation/native').useNavigation();
+                nav.navigate('Genre', {genreName: category.name});
               }}
             />
           ))}
