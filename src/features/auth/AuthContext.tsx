@@ -34,7 +34,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    return subscribeToAuthState(async firebaseUser => {
+    const unsubscribe = subscribeToAuthState(async firebaseUser => {
       try {
         if (firebaseUser) {
           const profile = await getUserProfile(firebaseUser.id);
@@ -47,6 +47,14 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
         setIsInitializing(false);
       }
     });
+
+    // if subscribeToAuthState returns an empty function (unconfigured),
+    // we should immediately stop initializing
+    if (unsubscribe.toString().includes('undefined')) {
+      setIsInitializing(false);
+    }
+
+    return unsubscribe;
   }, []);
 
   const value = useMemo(

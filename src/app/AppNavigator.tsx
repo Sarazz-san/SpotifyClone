@@ -40,6 +40,8 @@ export function AppNavigator() {
     setRouteName(navigationRef.getCurrentRoute()?.name);
   };
 
+  // On retire le chargement infini pour afficher directement l'interface
+  /*
   if (isInitializing) {
     return (
       <View style={{flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center'}}>
@@ -47,6 +49,7 @@ export function AppNavigator() {
       </View>
     );
   }
+  */
 
   return (
     <NavigationContainer 
