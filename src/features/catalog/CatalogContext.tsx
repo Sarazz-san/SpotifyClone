@@ -10,6 +10,7 @@ import React, {
 import type {Catalog} from './catalogService';
 import {demoCatalog, emptyCatalog, loadCatalog} from './catalogService';
 import {isFirebaseConfigured} from '../../firebase/firebaseAvailability';
+import {useAuth} from '../auth/AuthContext';
 
 type CatalogContextValue = Catalog & {
   isLoading: boolean;
@@ -20,6 +21,7 @@ type CatalogContextValue = Catalog & {
 const CatalogContext = createContext<CatalogContextValue | null>(null);
 
 export function CatalogProvider({children}: {children: React.ReactNode}) {
+  const {user} = useAuth();
   const [catalog, setCatalog] = useState<Catalog>(
     isFirebaseConfigured() ? emptyCatalog : demoCatalog
   );
@@ -28,11 +30,11 @@ export function CatalogProvider({children}: {children: React.ReactNode}) {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      setCatalog(await loadCatalog());
+      setCatalog(await loadCatalog(user?.id));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     refresh();
@@ -41,7 +43,7 @@ export function CatalogProvider({children}: {children: React.ReactNode}) {
   const genres = useMemo(() => {
     const set = new Set<string>();
     catalog.tracks.forEach(t => {
-      if (t.genre) set.add(String(t.genre));
+      if (t.type === 'music' && t.genre) set.add(String(t.genre));
     });
     return Array.from(set);
   }, [catalog.tracks]);

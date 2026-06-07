@@ -18,6 +18,8 @@ import {radius, spacing} from '../../constants/spacing';
 import {useCatalog} from './CatalogContext';
 import {usePlayer} from '../player/PlayerContext';
 import type {RootStackParamList} from '../../app/navigationTypes';
+import {AddToPlaylistModal} from '../../components/AddToPlaylistModal';
+import {Track} from '../../models/Track';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type PlaylistDetailRouteProp = RouteProp<RootStackParamList, 'PlaylistDetail'>;
@@ -28,6 +30,7 @@ export function PlaylistDetailScreen() {
   const {playlistId} = route.params;
   const {playlists, tracks} = useCatalog();
   const {playTrack, currentTrack} = usePlayer();
+  const [selectedTrack, setSelectedTrack] = React.useState<Track | null>(null);
 
   const playlist = playlists.find(p => p.id === playlistId);
   const playlistTracks = tracks.filter(t => playlist?.trackIds.includes(t.id));
@@ -61,6 +64,10 @@ export function PlaylistDetailScreen() {
           <Text style={styles.title}>{playlist.title}</Text>
           <Text style={styles.subtitle}>{playlist.subtitle}</Text>
           
+          <View style={styles.categoryBadge}>
+            <Text style={styles.categoryText}>{playlist.category.toUpperCase()}</Text>
+          </View>
+          
           <View style={styles.controls}>
             <View style={styles.infoRow}>
               <Icon name="heart-outline" size={24} color={colors.textMuted} />
@@ -78,11 +85,18 @@ export function PlaylistDetailScreen() {
               key={track.id}
               item={track}
               onPress={() => playTrack(track)}
+              onIconPress={() => setSelectedTrack(track)}
               trailingIcon={track.id === currentTrack?.id ? 'equalizer' : 'dots-vertical'}
             />
           ))}
         </View>
       </ScrollView>
+
+      <AddToPlaylistModal 
+        visible={!!selectedTrack}
+        track={selectedTrack}
+        onClose={() => setSelectedTrack(null)}
+      />
     </View>
   );
 }
@@ -133,6 +147,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: spacing.xs,
     fontWeight: '700',
+  },
+  categoryBadge: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.xs,
+    marginTop: spacing.md,
+  },
+  categoryText: {
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   controls: {
     flexDirection: 'row',

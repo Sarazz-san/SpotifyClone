@@ -11,6 +11,8 @@ import {RecentsScreen} from '../features/home/RecentsScreen';
 import {ArtistPickerScreen} from '../features/library/ArtistPickerScreen';
 import {LikedSongsScreen} from '../features/library/LikedSongsScreen';
 import {GenreScreen} from '../features/genre/GenreScreen';
+import {CategoryScreen} from '../features/catalog/CategoryScreen';
+import {ArtistDetailScreen} from '../features/catalog/ArtistDetailScreen';
 import {AuthNavigator} from './AuthNavigator';
 import {MainTabs} from './MainTabs';
 import type {RootStackParamList} from './navigationTypes';
@@ -32,7 +34,7 @@ const navigationTheme = {
 };
 
 export function AppNavigator() {
-  const {user} = useAuth();
+  const {user, isInitializing} = useAuth();
   const navigationRef = useNavigationContainerRef();
   const [routeName, setRouteName] = React.useState<string | undefined>();
 
@@ -40,16 +42,8 @@ export function AppNavigator() {
     setRouteName((navigationRef.getCurrentRoute() as {name?: string} | undefined)?.name);
   };
 
-  // On retire le chargement infini pour afficher directement l'interface
-  /*
-  if (isInitializing) {
-    return (
-      <View style={{flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center'}}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-  */
+  // isInitializing is handled inside LoginScreen (it renders a splash)
+  // so here we just route based on user state
 
   return (
     <NavigationContainer 
@@ -74,6 +68,8 @@ export function AppNavigator() {
             <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen} />
             <Stack.Screen name="LikedSongs" component={LikedSongsScreen} />
             <Stack.Screen name="Genre" component={GenreScreen} />
+            <Stack.Screen name="Category" component={CategoryScreen} />
+            <Stack.Screen name="ArtistDetail" component={ArtistDetailScreen} />
           </>
         ) : (
           <Stack.Screen name="Auth" component={AuthNavigator} />

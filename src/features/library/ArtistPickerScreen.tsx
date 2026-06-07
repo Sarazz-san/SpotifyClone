@@ -7,6 +7,8 @@ import {getFirestore, collection, getDocs} from '@react-native-firebase/firestor
 import {colors} from '../../constants/colors';
 import {spacing, radius} from '../../constants/spacing';
 import {useCatalog} from '../catalog/CatalogContext';
+import {useAuth} from '../auth/AuthContext';
+import {toggleFollowArtist, subscribeToFollowedArtists} from '../user/userService';
 
 type Artist = {
   id: string;
@@ -18,7 +20,17 @@ export function ArtistPickerScreen() {
   const navigation = useNavigation();
   const [search, setSearch] = useState('');
   const [dbArtists, setDbArtists] = useState<Artist[]>([]);
+  const [followedIds, setFollowedIds] = useState<string[]>([]);
   const {tracks} = useCatalog();
+  const {user} = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      return subscribeToFollowedArtists(user, artists => {
+        setFollowedIds(artists.map(a => a.id));
+      });
+    }
+  }, [user]);
 
   useEffect(() => {
     const fetchArtists = async () => {
@@ -78,12 +90,25 @@ export function ArtistPickerScreen() {
         numColumns={3}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({item}) => (
-          <TouchableOpacity style={styles.artistItem}>
-            <Image source={{uri: item.image}} style={styles.avatar} />
-            <Text style={styles.artistName}>{item.name}</Text>
-          </TouchableOpacity>
-        )}
+        renderItem={({item}) => {
+          const isSelected = followedIds.includes(item.id);
+          return (
+            <TouchableOpacity 
+              style={styles.artistItem}
+              onPress={() => toggleFollowArtist(user, item, isSelected)}
+            >
+              <View style={[styles.avatarContainer, isSelected && styles.avatarSelected]}>
+                <Image source={{uri: item.image}} style={styles.avatar} />
+                {isSelected && (
+                  <View style={styles.checkBadge}>
+                    <Icon name="check" size={16} color={colors.black} />
+                  </View>
+                )}
+              </View>
+              <Text style={styles.artistName}>{item.name}</Text>
+            </TouchableOpacity>
+          );
+        }}
       />
 
       <View style={styles.footer}>
@@ -111,7 +136,20 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, marginLeft: spacing.sm, fontSize: 16, color: colors.black, fontWeight: '700' },
   listContent: { paddingHorizontal: spacing.md },
   artistItem: { flex: 1/3, alignItems: 'center', marginBottom: spacing.xl },
+  avatarContainer: { position: 'relative' },
   avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: spacing.sm },
+  avatarSelected: { opacity: 0.8 },
+  checkBadge: {
+    position: 'absolute',
+    bottom: 12,
+    right: 4,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   artistName: { color: colors.white, fontSize: 13, fontWeight: '900', textAlign: 'center' },
   footer: { position: 'absolute', bottom: 40, left: 0, right: 0, alignItems: 'center' },
   doneBtn: { backgroundColor: colors.white, paddingHorizontal: 40, paddingVertical: 12, borderRadius: radius.full },

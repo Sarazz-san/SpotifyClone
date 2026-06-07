@@ -1,5 +1,6 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {
+  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,31 +13,68 @@ import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import {CategoryTile} from '../../components/CategoryTile';
-import {EmptyState} from '../../components/EmptyState';
 import {TrackRow} from '../../components/TrackRow';
 import {colors} from '../../constants/colors';
 import {radius, spacing} from '../../constants/spacing';
 import {typography} from '../../constants/typography';
 import {useCatalog} from '../catalog/CatalogContext';
 import {usePlayer} from '../player/PlayerContext';
-
 import {useAuth} from '../auth/AuthContext';
 import {deleteSearchQuery, saveSearchQuery, subscribeToSearchHistory} from '../user/userService';
 import type {RootStackParamList} from '../../app/navigationTypes';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {AddToPlaylistModal} from '../../components/AddToPlaylistModal';
+import {Track} from '../../models/Track';
+import type {Category} from '../catalog/catalogService';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export function SearchScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<NavigationProp>();
   const {user} = useAuth();
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const {categories, tracks, genres} = useCatalog();
   const {playTrack} = usePlayer();
+  const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
 
   useEffect(() => {
     if (user) return subscribeToSearchHistory(user.id, setHistory);
   }, [user]);
+
+  // Build the Browse All grid: merge Firebase categories + Genres from tracks + Podcasts/Albums
+  const browseItems = useMemo((): Category[] => {
+    const firebaseItems: Category[] = categories.length > 0 ? categories : [];
+    
+    // Add Podcasts and Albums to browse items if not present
+    const specialItems: Category[] = [
+      { id: 'cat-podcasts', name: 'Podcasts' },
+      { id: 'cat-albums', name: 'Albums' }
+    ];
+
+    const genreItems: Category[] = genres.map((g, i) => ({
+      id: `genre-${i}`,
+      name: g,
+    }));
+
+    const nameSet = new Set<string>();
+    const result: Category[] = [];
+
+    const addIfNew = (item: Category) => {
+      const key = item.name.toLowerCase();
+      if (!nameSet.has(key)) {
+        nameSet.add(key);
+        result.push(item);
+      }
+    };
+
+    specialItems.forEach(item => addIfNew(item));
+    firebaseItems.forEach(item => addIfNew(item));
+    genreItems.forEach(item => addIfNew(item));
+
+    return result;
+  }, [categories, genres]);
 
   const results = useMemo(() => {
     const value = query.trim().toLowerCase();
@@ -58,142 +96,177 @@ export function SearchScreen() {
     }
   };
 
+  const handleCategoryPress = (item: Category) => {
+    // Route genre-like tiles to GenreScreen, category-like to CategoryScreen
+    const genreNames = new Set(genres.map(g => g.toLowerCase()));
+    if (genreNames.has(item.name.toLowerCase())) {
+      navigation.navigate('Genre', {genreName: item.name});
+    } else {
+      navigation.navigate('Category', {categoryId: item.id, categoryName: item.name});
+    }
+  };
+
+  // ── FOCUSED / SEARCH MODE ─────────────────────────────────────────────
   if (isFocused) {
     return (
       <View style={styles.container}>
-        <View style={[styles.header, styles.focusedHeader]}>
-          <TouchableOpacity onPress={() => { setIsFocused(false); setQuery(''); }}>
-            <Icon name="arrow-left" size={28} color={colors.white} />
+        {/* Search Header */}
+        <View style={styles.focusedHeader}>
+          <TouchableOpacity
+            onPress={() => {
+              setIsFocused(false);
+              setQuery('');
+            }}
+            style={styles.backBtn}>
+            <Icon name="arrow-left" size={26} color={colors.white} />
           </TouchableOpacity>
           <TextInput
             autoFocus
             onChangeText={setQuery}
             onSubmitEditing={handleSearchSubmit}
-            placeholder="What do you want to listen to?"
+            placeholder="Artists, songs, or podcasts"
             placeholderTextColor={colors.textMuted}
+            returnKeyType="search"
             style={styles.focusedInput}
             value={query}
           />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => setQuery('')} style={styles.clearBtn}>
+              <Icon name="close-circle" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
         </View>
 
-        <ScrollView contentContainerStyle={styles.content}>
+        {/* Search Results / Recents */}
+        <ScrollView
+          contentContainerStyle={styles.focusedContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
           {!query.trim() ? (
-            <>
-              <Text style={styles.sectionTitle}>Recents</Text>
-              {history.map(item => (
-                <View key={item} style={styles.historyItem}>
-                  <Icon
-                    name="magnify"
-                    size={24}
-                    color={colors.textMuted}
-                    style={styles.historyIcon}
-                  />
+            // ── History ──
+            history.length > 0 ? (
+              <>
+                <View style={styles.sectionRow}>
+                  <Text style={styles.sectionTitle}>Recent searches</Text>
                   <TouchableOpacity
-                    style={styles.historyTextButton}
-                    onPress={() => setQuery(item)}>
-                    <Text style={styles.historyTitle}>{item}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => user && deleteSearchQuery(user.id, item)}>
-                    <Icon name="close" size={24} color={colors.textMuted} />
+                    onPress={() =>
+                      history.forEach(item => user && deleteSearchQuery(user.id, item))
+                    }>
+                    <Text style={styles.clearAllText}>Clear all</Text>
                   </TouchableOpacity>
                 </View>
+                {history.map(item => (
+                  <View key={item} style={styles.historyRow}>
+                    <View style={styles.historyIconWrap}>
+                      <Icon name="history" size={20} color={colors.textMuted} />
+                    </View>
+                    <TouchableOpacity
+                      style={styles.historyTextBtn}
+                      onPress={() => setQuery(item)}>
+                      <Text style={styles.historyLabel}>{item}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => user && deleteSearchQuery(user.id, item)}>
+                      <Icon name="close" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </>
+            ) : (
+              <Text style={styles.hintText}>Find podcasts, artists, songs, and more.</Text>
+            )
+          ) : results.length > 0 ? (
+            // ── Results ──
+            <>
+              <Text style={styles.sectionTitle}>Top results</Text>
+              {results.map(track => (
+                <TrackRow
+                  item={track}
+                  key={track.id}
+                  onPress={() => {
+                    playTrack(track);
+                    handleSearchSubmit();
+                  }}
+                  onIconPress={() => setSelectedTrack(track)}
+                  trailingIcon="dots-vertical"
+                />
               ))}
             </>
           ) : (
-            results.map(track => (
-              <TrackRow
-                item={track}
-                key={track.id}
-                onPress={() => {
-                  playTrack(track);
-                  handleSearchSubmit();
-                }}
-                trailingIcon="play"
-              />
-            ))
+            <View style={styles.noResultsWrap}>
+              <Text style={styles.noResultsTitle}>
+                No results found for "{query}"
+              </Text>
+              <Text style={styles.noResultsSub}>
+                Try different keywords or check your spelling.
+              </Text>
+            </View>
           )}
         </ScrollView>
+
+        <AddToPlaylistModal
+          visible={!!selectedTrack}
+          track={selectedTrack}
+          onClose={() => setSelectedTrack(null)}
+        />
       </View>
     );
   }
 
+  // ── BROWSE MODE ───────────────────────────────────────────────────────
   return (
     <ScrollView
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>S</Text>
-        </View>
-        <Text style={styles.title}>Search</Text>
-        <Icon color={colors.text} name="camera-outline" size={30} />
+
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <Text style={styles.screenTitle}>Search</Text>
+        <Icon color={colors.text} name="camera-outline" size={28} />
       </View>
 
+      {/* Search bar (tap to focus) */}
       <Pressable style={styles.searchBox} onPress={() => setIsFocused(true)}>
-        <Icon color={colors.black} name="magnify" size={32} />
-        <Text style={styles.placeholderText}>What do you want to listen to?</Text>
+        <Icon color={colors.black} name="magnify" size={22} />
+        <Text style={styles.searchPlaceholder}>
+          What do you want to listen to?
+        </Text>
       </Pressable>
 
-      <Text style={styles.sectionTitle}>Discover something new</Text>
-      {genres.length ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {genres.slice(0, 5).map((g, i) => (
-            <Pressable key={`genre-${i}`} style={styles.discoveryCard} onPress={() => navigation.navigate('Genre', {genreName: g})}>
-              <Icon
-                color="rgba(255,255,255,0.65)"
-                name="play-box-outline"
-                size={72}
-              />
-              <Text numberOfLines={1} style={styles.discoveryText}>
-                #{String(g).toLowerCase()}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      ) : (
-        <EmptyState
-          title="Catalogue indisponible"
-          message="Vérifiez votre connexion pour découvrir les dernières nouveautés."
-        />
-      )}
+      {/* Discover something new */}
+      <Text style={[styles.sectionTitle, { marginTop: spacing.md }]}>Discover something new</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.discoverScroll}>
+        {genres.slice(0, 4).map(genre => (
+          <TouchableOpacity 
+            key={genre} 
+            style={styles.discoverCard}
+            onPress={() => navigation.navigate('Genre', {genreName: genre})}
+          >
+            <View style={styles.discoverIconWrap}>
+              <Icon name="play" size={48} color={colors.textMuted} />
+            </View>
+            <Text style={styles.discoverText}>#{genre}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
+      {/* Browse All grid */}
       <Text style={styles.sectionTitle}>Browse all</Text>
-      {categories.length ? (
-        <View style={styles.categoryGrid}>
-          {genres.map((g, index) => (
-            <CategoryTile 
-              index={index} 
-              key={`genre-${index}`} 
-              item={{id: `genre-${index}`, name: String(g)}} 
-              onPress={() => {
-                navigation.navigate('Genre', {genreName: String(g)});
-              }}
-            />
-          ))}
-        </View>
-      ) : null}
-
-      {query.trim() ? (
-        <>
-          <Text style={styles.sectionTitle}>Results</Text>
-          {results.length ? (
-            results.map(track => (
-              <TrackRow
-                item={track}
-                key={track.id}
-                onPress={() => playTrack(track)}
-                trailingIcon="play"
-              />
-            ))
-          ) : (
-            <EmptyState
-              title="No results"
-              message="Try another track, artist, album, or category."
-            />
-          )}
-        </>
-      ) : null}
+      <FlatList
+        data={browseItems}
+        keyExtractor={item => item.id}
+        numColumns={2}
+        scrollEnabled={false}
+        columnWrapperStyle={styles.row}
+        renderItem={({item, index}) => (
+          <CategoryTile
+            index={index}
+            item={item}
+            onPress={() => handleCategoryPress(item)}
+          />
+        )}
+      />
     </ScrollView>
   );
 }
@@ -203,52 +276,60 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.backgroundDeep,
   },
+  // ── Browse mode ──────────────────────────
   content: {
     padding: spacing.lg,
+    paddingTop: 52,
     paddingBottom: 170,
   },
-  header: {
-    minHeight: 58,
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
   },
-  focusedHeader: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: 50,
-  },
-  avatar: {
-    width: 42,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.full,
-    backgroundColor: '#bf7a4c',
-  },
-  avatarText: {
-    color: colors.white,
-    fontSize: typography.title,
-    fontWeight: '900',
-  },
-  title: {
-    flex: 1,
+  screenTitle: {
     color: colors.text,
     fontSize: typography.display,
     fontWeight: '900',
   },
   searchBox: {
-    minHeight: 58,
+    height: 50,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginTop: spacing.lg,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.md,
     backgroundColor: colors.white,
+    marginBottom: spacing.xs,
   },
-  input: {
-    flex: 1,
+  searchPlaceholder: {
     color: colors.black,
+    fontSize: typography.body,
+    fontWeight: '600',
+    opacity: 0.7,
+  },
+  discoverScroll: {
+    marginHorizontal: -spacing.lg,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  discoverCard: {
+    backgroundColor: '#282828',
+    width: 130,
+    height: 200,
+    borderRadius: radius.sm,
+    marginRight: spacing.md,
+    padding: spacing.md,
+    justifyContent: 'space-between',
+  },
+  discoverIconWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  discoverText: {
+    color: colors.white,
     fontSize: typography.body,
     fontWeight: '800',
   },
@@ -259,76 +340,96 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     marginBottom: spacing.md,
   },
-  discoveryCard: {
-    width: 188,
-    height: 282,
-    justifyContent: 'flex-end',
-    marginRight: spacing.lg,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    backgroundColor: colors.surfaceHigh,
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
   },
-  discoveryText: {
-    color: colors.white,
-    fontSize: typography.body,
-    fontWeight: '900',
+  // ── Focused / Search mode ─────────────────
+  focusedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: 52,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
-  placeholderText: {
-    color: colors.textMuted,
-    fontSize: 16,
-    fontWeight: '700',
+  backBtn: {
+    padding: spacing.xs,
   },
   focusedInput: {
     flex: 1,
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
-    marginLeft: spacing.md,
-  },
-  historyItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  historyIcon: {
-    marginRight: spacing.md,
-  },
-  historyTextButton: {
-    flex: 1,
-  },
-  historyCover: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.xs,
-    marginRight: spacing.md,
-  },
-  historyTitle: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  historyMeta: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: 2,
+    height: 44,
+    color: colors.text,
+    fontSize: typography.body,
+    fontWeight: '600',
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
   },
   clearBtn: {
-    alignSelf: 'center',
-    marginTop: spacing.xl,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.textMuted,
-    borderRadius: radius.full,
+    padding: spacing.xs,
   },
-  clearText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '900',
+  focusedContent: {
+    padding: spacing.lg,
+    paddingBottom: 120,
   },
-  categoryGrid: {
+  sectionRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  clearAllText: {
+    color: colors.textMuted,
+    fontSize: typography.small,
+    fontWeight: '700',
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    gap: spacing.md,
+  },
+  historyIconWrap: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+  },
+  historyTextBtn: {
+    flex: 1,
+  },
+  historyLabel: {
+    color: colors.text,
+    fontSize: typography.body,
+    fontWeight: '700',
+  },
+  hintText: {
+    color: colors.textMuted,
+    fontSize: typography.body,
+    textAlign: 'center',
+    marginTop: spacing.xxl,
+  },
+  noResultsWrap: {
+    alignItems: 'center',
+    marginTop: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+  },
+  noResultsTitle: {
+    color: colors.text,
+    fontSize: typography.headline,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  noResultsSub: {
+    color: colors.textMuted,
+    fontSize: typography.body,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    lineHeight: 22,
   },
 });

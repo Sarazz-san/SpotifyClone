@@ -14,6 +14,7 @@ import {
   subscribeToAuthState,
 } from './authService';
 import {getUserProfile, upsertUserProfile} from '../user/userService';
+import {friendlyError} from '../../utils/errorMessages';
 
 type AuthContextValue = {
   user: AppUser | null;
@@ -21,7 +22,7 @@ type AuthContextValue = {
   isInitializing: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, displayName?: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -34,6 +35,12 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // If Firebase isn't configured, immediately exit init state
+    if (!subscribeToAuthState) {
+      setIsInitializing(false);
+      return;
+    }
+
     const unsubscribe = subscribeToAuthState(async firebaseUser => {
       try {
         if (firebaseUser) {
@@ -43,14 +50,15 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
         } else {
           setUser(null);
         }
+      } catch {
+        setUser(null);
       } finally {
         setIsInitializing(false);
       }
     });
 
-    // if subscribeToAuthState returns an empty function (unconfigured),
-    // we should immediately stop initializing
-    if (unsubscribe.toString().includes('undefined')) {
+    // subscribeToAuthState returns () => undefined if Firebase isn't configured
+    if (!unsubscribe || unsubscribe === (() => undefined)) {
       setIsInitializing(false);
     }
 
@@ -73,34 +81,30 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
           setUser(fullUser);
           await upsertUserProfile(fullUser);
         } catch (authError) {
-          setError(
-            authError instanceof Error
-              ? authError.message
-              : 'Connexion impossible',
-          );
+          setError(friendlyError(authError, 'Connexion impossible'));
         } finally {
           setIsLoading(false);
         }
       },
-      register: async (email: string, password: string) => {
+      register: async (email: string, password: string, displayName?: string) => {
         setIsLoading(true);
         setError(null);
         try {
-          const registeredUser = await registerWithEmail(email, password);
+          const registeredUser = await registerWithEmail(email, password, displayName);
           setUser(registeredUser);
           await upsertUserProfile(registeredUser);
         } catch (authError) {
-          setError(
-            authError instanceof Error
-              ? authError.message
-              : 'Creation du compte impossible',
-          );
+          setError(friendlyError(authError, 'Création du compte impossible'));
         } finally {
           setIsLoading(false);
         }
       },
       logout: async () => {
-        await logoutFromAuth();
+        try {
+          await logoutFromAuth();
+        } catch {
+          // Silent logout failure – still clear local user
+        }
         setUser(null);
       },
     }),

@@ -48,20 +48,53 @@ export async function createTrack(trackData: {
   title: string;
   artist: string;
   album: string;
-  category: string; // site category (Music, Podcasts...)
+  type: 'music' | 'podcast';
   genre?: string; // musical genre (Hip-Hop, Electronic...)
   audioUrl: string;
   coverUrl: string;
   durationMs: number;
+  userId?: string | null;
 }) {
   const db = getFirestore();
+  
+  if (trackData.genre) {
+    const genreRef = doc(db, 'genres', trackData.genre.toLowerCase().replace(/\s+/g, '-'));
+    await setDoc(genreRef, {
+      name: trackData.genre,
+      createdAt: serverTimestamp(),
+    }, {merge: true});
+  }
+
   const newTrackRef = doc(collection(db, firebaseCollections.tracks));
   await setDoc(newTrackRef, {
     ...trackData,
+    userId: trackData.userId || null,
     id: newTrackRef.id,
     createdAt: serverTimestamp(),
   });
   return newTrackRef.id;
+}
+
+export async function updateTrack(trackId: string, trackData: Partial<{
+  title: string;
+  artist: string;
+  album: string;
+  type: 'music' | 'podcast';
+  genre: string;
+  audioUrl: string;
+  coverUrl: string;
+}>) {
+  const db = getFirestore();
+  
+  if (trackData.genre) {
+    const genreRef = doc(db, 'genres', trackData.genre.toLowerCase().replace(/\s+/g, '-'));
+    await setDoc(genreRef, {
+      name: trackData.genre,
+      createdAt: serverTimestamp(),
+    }, {merge: true});
+  }
+
+  await updateDoc(doc(db, firebaseCollections.tracks, trackId), trackData);
 }
 
 export async function deleteTrack(trackId: string) {
@@ -71,11 +104,12 @@ export async function deleteTrack(trackId: string) {
 
 export async function getStats() {
   const db = getFirestore();
-  const [tracks, playlists, users, categories] = await Promise.all([
+  const [tracks, playlists, users, categories, genres] = await Promise.all([
     getDocs(collection(db, firebaseCollections.tracks)),
     getDocs(collection(db, firebaseCollections.playlists)),
     getDocs(collection(db, firebaseCollections.users)),
     getDocs(collection(db, firebaseCollections.categories)),
+    getDocs(collection(db, 'genres')),
   ]);
 
   return {
@@ -83,6 +117,7 @@ export async function getStats() {
     playlists: playlists.size,
     users: users.size,
     categories: categories.size,
+    genres: genres.size,
   };
 }
 
@@ -107,9 +142,53 @@ export async function addCategory(name: string, imageUrl?: string, color?: strin
   });
 }
 
+export async function updateCategory(id: string, name: string, imageUrl?: string, color?: string) {
+  const db = getFirestore();
+  const data: any = { name };
+  if (imageUrl !== undefined) data.imageUrl = imageUrl;
+  if (color !== undefined) data.color = color;
+  await updateDoc(doc(db, firebaseCollections.categories, id), data);
+}
+
 export async function deleteCategory(id: string) {
   const db = getFirestore();
   await deleteDoc(doc(db, firebaseCollections.categories, id));
+}
+
+// Genres CRUD
+export async function getGenres(): Promise<{id: string; name: string; imageUrl?: string; color?: string}[]> {
+  const db = getFirestore();
+  const snapshot = await getDocs(collection(db, 'genres'));
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    name: doc.data().name,
+    imageUrl: doc.data().imageUrl,
+    color: doc.data().color,
+  }));
+}
+
+export async function addGenre(name: string, imageUrl?: string, color?: string) {
+  const db = getFirestore();
+  const id = name.toLowerCase().replace(/\s+/g, '-');
+  await setDoc(doc(db, 'genres', id), {
+    name,
+    imageUrl,
+    color,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function updateGenre(id: string, name: string, imageUrl?: string, color?: string) {
+  const db = getFirestore();
+  const data: any = { name };
+  if (imageUrl !== undefined) data.imageUrl = imageUrl;
+  if (color !== undefined) data.color = color;
+  await updateDoc(doc(db, 'genres', id), data);
+}
+
+export async function deleteGenre(id: string) {
+  const db = getFirestore();
+  await deleteDoc(doc(db, 'genres', id));
 }
 
 export async function createPlaylist(playlistData: {
@@ -128,6 +207,16 @@ export async function createPlaylist(playlistData: {
     createdAt: serverTimestamp(),
   });
   return newPlaylistRef.id;
+}
+
+export async function updatePlaylist(id: string, playlistData: Partial<{
+  title: string;
+  subtitle: string;
+  category: string;
+  coverUrl: string;
+}>) {
+  const db = getFirestore();
+  await updateDoc(doc(db, firebaseCollections.playlists, id), playlistData);
 }
 
 export async function deletePlaylist(id: string) {

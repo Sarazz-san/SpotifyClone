@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,14 +11,14 @@ import {
   View,
 } from 'react-native';
 import DocumentPicker from 'react-native-document-picker';
-import {launchImageLibrary} from 'react-native-image-picker';
+import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-import {ScreenHeader} from '../../components/ScreenHeader';
-import {colors} from '../../constants/colors';
-import {radius, spacing} from '../../constants/spacing';
-import {typography} from '../../constants/typography';
-import {useCatalog} from '../catalog/CatalogContext';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { colors } from '../../constants/colors';
+import { radius, spacing } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
+import { useCatalog } from '../catalog/CatalogContext';
 import {
   addCategory,
   createArtist,
@@ -27,46 +27,65 @@ import {
   deleteCategory,
   deletePlaylist,
   deleteTrack,
+  updateTrack,
+  updatePlaylist,
+  updateCategory,
   getCategories,
+  getGenres,
+  addGenre,
+  updateGenre,
+  deleteGenre,
   getStats,
   getUsers,
   setAdminStatus,
   uploadToCloudinary,
 } from './adminService';
-import {AppUser} from '../auth/authService';
+import { AppUser } from '../auth/authService';
+import { extractMetadata } from '../../utils/metadataParser';
 
-type AdminView = 'dashboard' | 'add_track' | 'list_tracks' | 'categories' | 'playlists' | 'users' | 'add_artist';
+type AdminView = 'dashboard' | 'add_track' | 'list_tracks' | 'categories' | 'genres' | 'playlists' | 'users' | 'add_artist';
 
 export function AdminScreen() {
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [isLoading, setIsLoading] = useState(false);
-  const [stats, setStats] = useState({tracks: 0, playlists: 0, users: 0, categories: 0});
-  const [categories, setCategories] = useState<{id: string; name: string; imageUrl?: string; color?: string}[]>([]);
-const [categoryImage, setCategoryImage] = useState<{uri: string; name: string} | null>(null);
-const [genreInput, setGenreInput] = useState('');
+  const [stats, setStats] = useState({ tracks: 0, playlists: 0, users: 0, categories: 0, genres: 0 });
+  const [categories, setCategories] = useState<{ id: string; name: string; imageUrl?: string; color?: string }[]>([]);
+  const [categoryImage, setCategoryImage] = useState<{ uri: string; name: string } | null>(null);
+  const [genreInput, setGenreInput] = useState('');
   const [userList, setUserList] = useState<AppUser[]>([]);
-  const {tracks: allTracks, playlists: allPlaylists, refresh} = useCatalog();
+  const { tracks: allTracks, playlists: allPlaylists, refresh } = useCatalog();
 
   // Add Track Form State
+  const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [album, setAlbum] = useState('');
+  const [trackType, setTrackType] = useState<'music' | 'podcast'>('music');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [audioFile, setAudioFile] = useState<{uri: string; name: string} | null>(null);
-  const [coverFile, setCoverFile] = useState<{uri: string; name: string} | null>(null);
+  const [audioFile, setAudioFile] = useState<{ uri: string; name: string } | null>(null);
+  const [coverFile, setCoverFile] = useState<{ uri: string; name: string } | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
 
   // Add Artist Form State
   const [artistName, setArtistName] = useState('');
-  const [artistCover, setArtistCover] = useState<{uri: string; name: string} | null>(null);
+  const [artistCover, setArtistCover] = useState<{ uri: string; name: string } | null>(null);
 
   // Add Playlist Form State
+  const [editingPlaylistId, setEditingPlaylistId] = useState<string | null>(null);
   const [pTitle, setPTitle] = useState('');
   const [pSubtitle, setPSubtitle] = useState('');
-  const [pCoverFile, setPCoverFile] = useState<{uri: string; name: string} | null>(null);
+  const [pSelectedCategory, setPSelectedCategory] = useState('Playlist');
+  const [pCoverFile, setPCoverFile] = useState<{ uri: string; name: string } | null>(null);
 
   // New Category State
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [newCatName, setNewCatName] = useState('');
+
+  // New Genre State
+  const [genres, setGenres] = useState<{ id: string; name: string; imageUrl?: string; color?: string }[]>([]);
+  const [editingGenreId, setEditingGenreId] = useState<string | null>(null);
+  const [newGenreName, setNewGenreName] = useState('');
+  const [genreImage, setGenreImage] = useState<{ uri: string; name: string } | null>(null);
 
   useEffect(() => {
     loadInitialData();
@@ -74,11 +93,12 @@ const [genreInput, setGenreInput] = useState('');
 
   const loadInitialData = async () => {
     try {
-      const [s, cats, u] = await Promise.all([getStats(), getCategories(), getUsers()]);
+      const [s, cats, u, gens] = await Promise.all([getStats(), getCategories(), getUsers(), getGenres()]);
       setStats(s);
       setCategories(cats);
       setUserList(u);
-      if (cats.length > 0) setSelectedCategory(cats[0].name);
+      setGenres(gens);
+      if (cats.length > 0 && !selectedCategory) setSelectedCategory(cats[0].name);
     } catch (error) {
       console.error(error);
     }
@@ -90,9 +110,9 @@ const [genreInput, setGenreInput] = useState('');
   };
 
   const handlePickArtistCover = async () => {
-    const res = await launchImageLibrary({mediaType: 'photo'});
+    const res = await launchImageLibrary({ mediaType: 'photo' });
     if (res.assets?.[0]) {
-      setArtistCover({uri: res.assets[0].uri!, name: res.assets[0].fileName || 'artist.jpg'});
+      setArtistCover({ uri: res.assets[0].uri!, name: res.assets[0].fileName || 'artist.jpg' });
     }
   };
 
@@ -101,7 +121,7 @@ const [genreInput, setGenreInput] = useState('');
     setIsLoading(true);
     try {
       const coverUrl = await uploadToCloudinary(artistCover.uri, 'image', p => setUploadProgress(p));
-      await createArtist({name: artistName, coverUrl});
+      await createArtist({ name: artistName, coverUrl });
       Alert.alert('Succès', 'Artiste ajouté !');
       setArtistName(''); setArtistCover(null);
       setActiveView('dashboard');
@@ -114,9 +134,21 @@ const [genreInput, setGenreInput] = useState('');
     }
   };
 
+  const handleEditTrack = (track: any) => {
+    setEditingTrackId(track.id);
+    setTitle(track.title);
+    setArtist(track.artist);
+    setAlbum(track.album || '');
+    setSelectedCategory(track.category || '');
+    setGenreInput(track.genre || '');
+    setAudioFile(null);
+    setCoverFile(null);
+    setActiveView('add_track');
+  };
+
   const handleDeleteTrack = (id: string, name: string) => {
     Alert.alert('Supprimer', `Voulez-vous supprimer "${name}" ?`, [
-      {text: 'Annuler', style: 'cancel'},
+      { text: 'Annuler', style: 'cancel' },
       {
         text: 'Supprimer',
         style: 'destructive',
@@ -129,10 +161,25 @@ const [genreInput, setGenreInput] = useState('');
     ]);
   };
 
+  const handleEditCategory = (cat: any) => {
+    setEditingCategoryId(cat.id);
+    setNewCatName(cat.name);
+    setCategoryImage(null);
+    setActiveView('categories');
+  };
+
+  const handleEditPlaylist = (p: any) => {
+    setEditingPlaylistId(p.id);
+    setPTitle(p.title);
+    setPSubtitle(p.subtitle);
+    setPCoverFile(null);
+    setActiveView('playlists');
+  };
+
   const handlePickCategoryImage = async () => {
-    const res = await launchImageLibrary({mediaType: 'photo'});
+    const res = await launchImageLibrary({ mediaType: 'photo' });
     if (res.assets?.[0]) {
-      setCategoryImage({uri: res.assets[0].uri!, name: res.assets[0].fileName || 'cat.jpg'});
+      setCategoryImage({ uri: res.assets[0].uri!, name: res.assets[0].fileName || 'cat.jpg' });
     }
   };
 
@@ -144,9 +191,14 @@ const [genreInput, setGenreInput] = useState('');
       if (categoryImage) {
         imageUrl = await uploadToCloudinary(categoryImage.uri, 'image', p => setUploadProgress(p));
       }
-      await addCategory(newCatName, imageUrl);
+      if (editingCategoryId) {
+        await updateCategory(editingCategoryId, newCatName, imageUrl);
+      } else {
+        await addCategory(newCatName, imageUrl);
+      }
       setNewCatName('');
       setCategoryImage(null);
+      setEditingCategoryId(null);
       loadInitialData();
     } catch (error) {
       Alert.alert('Erreur', 'Échec de l’ajout de la catégorie');
@@ -158,43 +210,74 @@ const [genreInput, setGenreInput] = useState('');
 
   const handlePickAudio = async () => {
     try {
-      const res = await DocumentPicker.pickSingle({type: [DocumentPicker.types.audio]});
-      setAudioFile({uri: res.uri, name: res.name || 'audio.mp3'});
+      const res = await DocumentPicker.pickSingle({ type: [DocumentPicker.types.audio] });
+      setAudioFile({ uri: res.uri, name: res.name || 'audio.mp3' });
+
+      try {
+        console.log('Extracting metadata for:', res.uri);
+        const metadata = await extractMetadata(res.uri);
+        console.log('Metadata extracted:', metadata);
+        
+        if (metadata.title) setTitle(metadata.title);
+        if (metadata.artist) setArtist(metadata.artist);
+        if (metadata.album) setAlbum(metadata.album);
+        
+        if (metadata.genre && !genreInput) setGenreInput(metadata.genre);
+        if (metadata.coverUri && !coverFile) {
+          setCoverFile({ uri: metadata.coverUri, name: 'cover_extracted.jpg' });
+        }
+      } catch (err) {
+        console.log('No metadata found or error extracting', err);
+      }
     } catch (err) {
       if (!DocumentPicker.isCancel(err)) Alert.alert('Erreur', 'Sélection échouée');
     }
   };
 
   const handlePickCover = async () => {
-    const res = await launchImageLibrary({mediaType: 'photo'});
+    const res = await launchImageLibrary({ mediaType: 'photo' });
     if (res.assets?.[0]) {
-      setCoverFile({uri: res.assets[0].uri!, name: res.assets[0].fileName || 'cover.jpg'});
+      setCoverFile({ uri: res.assets[0].uri!, name: res.assets[0].fileName || 'cover.jpg' });
     }
   };
 
   const handlePickPCover = async () => {
-    const res = await launchImageLibrary({mediaType: 'photo'});
+    const res = await launchImageLibrary({ mediaType: 'photo' });
     if (res.assets?.[0]) {
-      setPCoverFile({uri: res.assets[0].uri!, name: res.assets[0].fileName || 'cover.jpg'});
+      setPCoverFile({ uri: res.assets[0].uri!, name: res.assets[0].fileName || 'cover.jpg' });
     }
   };
 
   const handleSubmitPlaylist = async () => {
-    if (!pTitle || !pSubtitle || !pCoverFile) {
+    if (!pTitle || !pSubtitle || (!editingPlaylistId && !pCoverFile)) {
       Alert.alert('Champs requis', 'Veuillez tout remplir.');
       return;
     }
     setIsLoading(true);
     try {
-      const coverUrl = await uploadToCloudinary(pCoverFile.uri, 'image', p => setUploadProgress(p));
-      await createPlaylist({
-        title: pTitle,
-        subtitle: pSubtitle,
-        category: 'Music',
-        coverUrl,
-      });
-      Alert.alert('Succès', 'Playlist créée !');
-      setPTitle(''); setPSubtitle(''); setPCoverFile(null);
+      let coverUrl;
+      if (pCoverFile) {
+        coverUrl = await uploadToCloudinary(pCoverFile.uri, 'image', p => setUploadProgress(p));
+      }
+
+      if (editingPlaylistId) {
+        await updatePlaylist(editingPlaylistId, {
+          title: pTitle,
+          subtitle: pSubtitle,
+          category: pSelectedCategory.toLowerCase() as any,
+          ...(coverUrl && { coverUrl }),
+        });
+        Alert.alert('Succès', 'Playlist modifiée !');
+      } else {
+        await createPlaylist({
+          title: pTitle,
+          subtitle: pSubtitle,
+          category: pSelectedCategory.toLowerCase() as any,
+          coverUrl: coverUrl!,
+        });
+        Alert.alert('Succès', 'Playlist créée !');
+      }
+      setPTitle(''); setPSubtitle(''); setPCoverFile(null); setEditingPlaylistId(null);
       refresh();
       loadInitialData();
     } catch {
@@ -207,7 +290,7 @@ const [genreInput, setGenreInput] = useState('');
 
   const handleDeletePlaylist = (id: string, name: string) => {
     Alert.alert('Supprimer', `Supprimer la playlist "${name}" ?`, [
-      {text: 'Annuler', style: 'cancel'},
+      { text: 'Annuler', style: 'cancel' },
       {
         text: 'Supprimer',
         style: 'destructive',
@@ -221,18 +304,48 @@ const [genreInput, setGenreInput] = useState('');
   };
 
   const handleSubmitTrack = async () => {
-    if (!title || !artist || !audioFile || !coverFile) {
-      Alert.alert('Champs requis', 'Veuillez tout remplir.');
+    if (!title || !artist || (!editingTrackId && (!audioFile || !coverFile))) {
+      Alert.alert('Champs requis', 'Veuillez remplir les champs obligatoires.');
       return;
     }
     setIsLoading(true);
     try {
-      const coverUrl = await uploadToCloudinary(coverFile.uri, 'image', p => setUploadProgress(p * 0.2));
-      const audioUrl = await uploadToCloudinary(audioFile.uri, 'video', p => setUploadProgress(0.2 + p * 0.8));
-      await createTrack({title, artist, album, category: selectedCategory, genre: genreInput || undefined, audioUrl, coverUrl, durationMs: 180000});
-      Alert.alert('Succès', 'Morceau publié !');
-      setTitle(''); setArtist(''); setAlbum(''); setAudioFile(null); setCoverFile(null);
-      setActiveView('dashboard');
+      let coverUrl;
+      let audioUrl;
+      if (coverFile) {
+        coverUrl = await uploadToCloudinary(coverFile.uri, 'image', p => setUploadProgress(p * 0.2));
+      }
+      if (audioFile) {
+        audioUrl = await uploadToCloudinary(audioFile.uri, 'video', p => setUploadProgress(0.2 + p * 0.8));
+      }
+
+      if (editingTrackId) {
+        await updateTrack(editingTrackId, {
+          title,
+          artist,
+          album,
+          type: trackType,
+          genre: trackType === 'music' ? (genreInput || undefined) : undefined,
+          ...(audioUrl && { audioUrl }),
+          ...(coverUrl && { coverUrl })
+        });
+        Alert.alert('Succès', 'Morceau mis à jour !');
+      } else {
+        await createTrack({ 
+          title, 
+          artist, 
+          album, 
+          type: trackType, 
+          genre: trackType === 'music' ? (genreInput || undefined) : undefined, 
+          audioUrl: audioUrl!, 
+          coverUrl: coverUrl!, 
+          durationMs: 180000 
+        });
+        Alert.alert('Succès', 'Morceau publié !');
+      }
+
+      setTitle(''); setArtist(''); setAlbum(''); setAudioFile(null); setCoverFile(null); setEditingTrackId(null);
+      setActiveView('list_tracks');
       refresh();
       loadInitialData();
     } catch {
@@ -257,9 +370,10 @@ const [genreInput, setGenreInput] = useState('');
       <MenuButton icon="account-star" label="Gérer un Artiste" onPress={() => setActiveView('add_artist')} />
       <MenuButton icon="playlist-plus" label="Créer une Playlist" onPress={() => setActiveView('playlists')} />
 
-      <Text style={[styles.sectionTitle, {marginTop: spacing.xl}]}>Modules de Contrôle</Text>
+      <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>Modules de Contrôle</Text>
       <MenuButton icon="format-list-bulleted" label="Bibliothèque Globale" onPress={() => setActiveView('list_tracks')} />
-      <MenuButton icon="tag-multiple" label="Genres & Catégories" onPress={() => setActiveView('categories')} />
+      <MenuButton icon="tag-multiple" label="Catégories" onPress={() => setActiveView('categories')} />
+      <MenuButton icon="tag-text" label="Genres" onPress={() => setActiveView('genres')} />
       <MenuButton icon="security" label="Gestion des Permissions" onPress={() => setActiveView('users')} />
     </ScrollView>
   );
@@ -286,21 +400,21 @@ const [genreInput, setGenreInput] = useState('');
 
   const renderUsers = () => (
     <View style={styles.flex1}>
-      <TouchableOpacity onPress={() => setActiveView('dashboard')} style={[styles.backBtn, {margin: spacing.lg}]}>
+      <TouchableOpacity onPress={() => setActiveView('dashboard')} style={[styles.backBtn, { margin: spacing.lg }]}>
         <Icon name="arrow-left" size={24} color={colors.white} />
         <Text style={styles.backText}>Retour</Text>
       </TouchableOpacity>
       <FlatList
         data={userList}
         keyExtractor={item => item.id}
-        contentContainerStyle={{padding: spacing.lg}}
-        renderItem={({item}) => (
+        contentContainerStyle={{ padding: spacing.lg }}
+        renderItem={({ item }) => (
           <View style={styles.trackItem}>
             <View style={styles.flex1}>
               <Text style={styles.trackTitle}>{item.displayName}</Text>
               <Text style={styles.trackArtist}>{item.email}</Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.roleBadge, item.isAdmin && styles.adminBadge]}
               onPress={() => handleToggleAdmin(item.id, !!item.isAdmin)}
             >
@@ -312,34 +426,73 @@ const [genreInput, setGenreInput] = useState('');
     </View>
   );
 
+  const handlePickGenreImage = async () => {
+    const res = await launchImageLibrary({ mediaType: 'photo' });
+    if (res.assets?.[0]?.uri) {
+      setGenreImage({ uri: res.assets[0].uri, name: res.assets[0].fileName || 'genre_image.jpg' });
+    }
+  };
+
+  const handleAddGenre = async () => {
+    if (!newGenreName) return;
+    setIsLoading(true);
+    try {
+      let imageUrl;
+      if (genreImage) {
+        imageUrl = await uploadToCloudinary(genreImage.uri, 'image');
+      }
+      if (editingGenreId) {
+        await updateGenre(editingGenreId, newGenreName, imageUrl);
+      } else {
+        await addGenre(newGenreName, imageUrl);
+      }
+      setNewGenreName('');
+      setGenreImage(null);
+      setEditingGenreId(null);
+      loadInitialData();
+    } catch {
+      Alert.alert('Erreur', 'Échec de la sauvegarde');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditGenre = (g: any) => {
+    setEditingGenreId(g.id);
+    setNewGenreName(g.name);
+    setGenreImage(g.imageUrl ? { uri: g.imageUrl, name: 'current_image.jpg' } : null);
+  };
+
   const renderAddTrack = () => (
     <ScrollView contentContainerStyle={styles.scrollContent}>
       <TouchableOpacity onPress={() => setActiveView('dashboard')} style={styles.backBtn}>
         <Icon name="arrow-left" size={24} color={colors.white} />
         <Text style={styles.backText}>Retour</Text>
       </TouchableOpacity>
-      <Text style={styles.sectionTitle}>Publication</Text>
+      <Text style={styles.sectionTitle}>{editingTrackId ? 'Modifier la publication' : 'Publication'}</Text>
       <View style={styles.form}>
+        <View style={styles.typeSelector}>
+          <TouchableOpacity 
+            style={[styles.typeBtn, trackType === 'music' && styles.activeType]} 
+            onPress={() => setTrackType('music')}
+          >
+            <Text style={styles.typeText}>Musique</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.typeBtn, trackType === 'podcast' && styles.activeType]} 
+            onPress={() => setTrackType('podcast')}
+          >
+            <Text style={styles.typeText}>Podcast</Text>
+          </TouchableOpacity>
+        </View>
+
         <TextInput placeholder="Titre" placeholderTextColor={colors.textMuted} style={styles.input} value={title} onChangeText={setTitle} />
         <TextInput placeholder="Artiste" placeholderTextColor={colors.textMuted} style={styles.input} value={artist} onChangeText={setArtist} />
         <TextInput placeholder="Album" placeholderTextColor={colors.textMuted} style={styles.input} value={album} onChangeText={setAlbum} />
-        
-        <View style={styles.pickerContainer}>
-          <Text style={styles.label}>Catégorie :</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catPicker}>
-            {categories.map(c => (
-              <TouchableOpacity 
-                key={c.id} 
-                onPress={() => setSelectedCategory(c.name)}
-                style={[styles.catChip, selectedCategory === c.name && styles.activeChip]}
-              >
-                <Text style={styles.catText}>{c.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
 
-        <TextInput placeholder="Genre (Hip-Hop, Electronic...)" placeholderTextColor={colors.textMuted} style={styles.input} value={genreInput} onChangeText={setGenreInput} />
+        {trackType === 'music' && (
+          <TextInput placeholder="Genre (Pop, Rock...)" placeholderTextColor={colors.textMuted} style={styles.input} value={genreInput} onChangeText={setGenreInput} />
+        )}
 
         <View style={styles.fileRow}>
           <TouchableOpacity style={styles.fileBtn} onPress={handlePickAudio}>
@@ -354,13 +507,13 @@ const [genreInput, setGenreInput] = useState('');
 
         {isLoading && (
           <View style={styles.progressContainer}>
-            <View style={[styles.progressBar, {width: `${uploadProgress * 100}%`}]} />
+            <View style={[styles.progressBar, { width: `${uploadProgress * 100}%` }]} />
             <Text style={styles.progressText}>{Math.round(uploadProgress * 100)}%</Text>
           </View>
         )}
 
         <TouchableOpacity disabled={isLoading} style={[styles.mainBtn, isLoading && styles.disabled]} onPress={handleSubmitTrack}>
-          {isLoading ? <ActivityIndicator color={colors.white} /> : <Text style={styles.btnText}>Lancer la Production</Text>}
+          {isLoading ? <ActivityIndicator color={colors.white} /> : <Text style={styles.btnText}>{editingTrackId ? 'Sauvegarder les modifications' : 'Lancer la Production'}</Text>}
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -368,23 +521,28 @@ const [genreInput, setGenreInput] = useState('');
 
   const renderListTracks = () => (
     <View style={styles.flex1}>
-      <TouchableOpacity onPress={() => setActiveView('dashboard')} style={[styles.backBtn, {margin: spacing.lg}]}>
+      <TouchableOpacity onPress={() => setActiveView('dashboard')} style={[styles.backBtn, { margin: spacing.lg }]}>
         <Icon name="arrow-left" size={24} color={colors.white} />
         <Text style={styles.backText}>Retour</Text>
       </TouchableOpacity>
       <FlatList
         data={allTracks}
         keyExtractor={item => item.id}
-        contentContainerStyle={{padding: spacing.lg}}
-        renderItem={({item}) => (
+        contentContainerStyle={{ padding: spacing.lg }}
+        renderItem={({ item }) => (
           <View style={styles.trackItem}>
             <View style={styles.flex1}>
               <Text style={styles.trackTitle}>{item.title}</Text>
               <Text style={styles.trackArtist}>{item.artist}</Text>
             </View>
-            <TouchableOpacity onPress={() => handleDeleteTrack(item.id, item.title)}>
-              <Icon name="trash-can-outline" size={24} color={colors.danger} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+              <TouchableOpacity onPress={() => handleEditTrack(item)}>
+                <Icon name="pencil" size={24} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleDeleteTrack(item.id, item.title)}>
+                <Icon name="trash-can-outline" size={24} color={colors.danger} />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       />
@@ -397,21 +555,21 @@ const [genreInput, setGenreInput] = useState('');
         <Icon name="arrow-left" size={24} color={colors.white} />
         <Text style={styles.backText}>Retour</Text>
       </TouchableOpacity>
-      <Text style={styles.sectionTitle}>Genres Musicaux</Text>
-      
+      <Text style={styles.sectionTitle}>{editingCategoryId ? 'Modifier la catégorie' : 'Catégories'}</Text>
+
       <View style={styles.addCatRow}>
-        <TextInput 
-          placeholder="Nouvelle catégorie..." 
-          placeholderTextColor={colors.textMuted} 
-          style={[styles.input, styles.flex1]} 
-          value={newCatName} 
-          onChangeText={setNewCatName} 
+        <TextInput
+          placeholder="Nouvelle catégorie..."
+          placeholderTextColor={colors.textMuted}
+          style={[styles.input, styles.flex1]}
+          value={newCatName}
+          onChangeText={setNewCatName}
         />
-        <TouchableOpacity style={[styles.fileBtn, {marginLeft: spacing.md}]} onPress={handlePickCategoryImage}>
+        <TouchableOpacity style={[styles.fileBtn, { marginLeft: spacing.md }]} onPress={handlePickCategoryImage}>
           <Icon name="image" size={20} color={categoryImage ? colors.primary : colors.white} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.squareBtn} onPress={handleAddCategory}>
-          {isLoading ? <ActivityIndicator color={colors.white} /> : <Icon name="plus" size={24} color={colors.white} />}
+          {isLoading ? <ActivityIndicator color={colors.white} /> : <Icon name={editingCategoryId ? "check" : "plus"} size={24} color={colors.white} />}
         </TouchableOpacity>
       </View>
 
@@ -419,9 +577,55 @@ const [genreInput, setGenreInput] = useState('');
         <View key={c.id} style={styles.catItem}>
           {c.imageUrl ? <Icon name="image" size={20} color={colors.textMuted} /> : null}
           <Text style={styles.catItemName}>{c.name}</Text>
-          <TouchableOpacity onPress={() => deleteCategory(c.id).then(loadInitialData)}>
-            <Icon name="close-circle" size={20} color={colors.textMuted} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: spacing.md }}>
+            <TouchableOpacity onPress={() => handleEditCategory(c)}>
+              <Icon name="pencil" size={20} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => deleteCategory(c.id).then(loadInitialData)}>
+              <Icon name="close-circle" size={20} color={colors.danger} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      ))}
+    </ScrollView>
+  );
+
+  const renderGenres = () => (
+    <ScrollView contentContainerStyle={styles.scrollContent}>
+      <TouchableOpacity onPress={() => setActiveView('dashboard')} style={styles.backBtn}>
+        <Icon name="arrow-left" size={24} color={colors.white} />
+        <Text style={styles.backText}>Retour</Text>
+      </TouchableOpacity>
+      <Text style={styles.sectionTitle}>{editingGenreId ? 'Modifier le genre' : 'Genres Musicaux'}</Text>
+
+      <View style={styles.addCatRow}>
+        <TextInput
+          placeholder="Nouveau genre..."
+          placeholderTextColor={colors.textMuted}
+          style={[styles.input, styles.flex1]}
+          value={newGenreName}
+          onChangeText={setNewGenreName}
+        />
+        <TouchableOpacity style={[styles.fileBtn, { marginLeft: spacing.md }]} onPress={handlePickGenreImage}>
+          <Icon name="image" size={20} color={genreImage ? colors.primary : colors.white} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.squareBtn} onPress={handleAddGenre}>
+          {isLoading ? <ActivityIndicator color={colors.white} /> : <Icon name={editingGenreId ? "check" : "plus"} size={24} color={colors.white} />}
+        </TouchableOpacity>
+      </View>
+
+      {genres.map(g => (
+        <View key={g.id} style={styles.catItem}>
+          {g.imageUrl ? <Icon name="image" size={20} color={colors.textMuted} /> : null}
+          <Text style={styles.catItemName}>{g.name}</Text>
+          <View style={{ flexDirection: 'row', gap: spacing.md }}>
+            <TouchableOpacity onPress={() => handleEditGenre(g)}>
+              <Icon name="pencil" size={20} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => deleteGenre(g.id).then(loadInitialData)}>
+              <Icon name="close-circle" size={20} color={colors.danger} />
+            </TouchableOpacity>
+          </View>
         </View>
       ))}
     </ScrollView>
@@ -433,28 +637,48 @@ const [genreInput, setGenreInput] = useState('');
         <Icon name="arrow-left" size={24} color={colors.white} />
         <Text style={styles.backText}>Retour</Text>
       </TouchableOpacity>
-      <Text style={styles.sectionTitle}>Nouvelle Playlist</Text>
+      <Text style={styles.sectionTitle}>{editingPlaylistId ? 'Modifier la Playlist' : 'Nouvelle Playlist'}</Text>
       <View style={styles.form}>
         <TextInput placeholder="Nom de la Playlist" placeholderTextColor={colors.textMuted} style={styles.input} value={pTitle} onChangeText={setPTitle} />
         <TextInput placeholder="Description" placeholderTextColor={colors.textMuted} style={styles.input} value={pSubtitle} onChangeText={setPSubtitle} />
-        
+
+        <View style={styles.pickerContainer}>
+          <Text style={styles.label}>Catégorie :</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catPicker}>
+            {['Playlist', 'Album', 'Podcast'].map(c => (
+              <TouchableOpacity
+                key={c}
+                onPress={() => setPSelectedCategory(c)}
+                style={[styles.catChip, pSelectedCategory === c && styles.activeChip]}
+              >
+                <Text style={styles.catText}>{c}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         <TouchableOpacity style={styles.fileBtn} onPress={handlePickPCover}>
           <Icon name="image" size={20} color={pCoverFile ? colors.primary : colors.white} />
           <Text numberOfLines={1} style={styles.fileBtnText}>{pCoverFile ? pCoverFile.name : 'Choisir Cover'}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity disabled={isLoading} style={[styles.mainBtn, isLoading && styles.disabled]} onPress={handleSubmitPlaylist}>
-          {isLoading ? <ActivityIndicator color={colors.white} /> : <Text style={styles.btnText}>Créer la Playlist</Text>}
+          {isLoading ? <ActivityIndicator color={colors.white} /> : <Text style={styles.btnText}>{editingPlaylistId ? 'Sauvegarder' : 'Créer la Playlist'}</Text>}
         </TouchableOpacity>
       </View>
 
-      <Text style={[styles.sectionTitle, {marginTop: spacing.xl}]}>Toutes les Playlists</Text>
+      <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>Toutes les Playlists</Text>
       {allPlaylists.map(p => (
         <View key={p.id} style={styles.catItem}>
           <Text style={styles.catItemName}>{p.title}</Text>
-          <TouchableOpacity onPress={() => handleDeletePlaylist(p.id, p.title)}>
-            <Icon name="delete" size={20} color={colors.danger} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: spacing.md }}>
+            <TouchableOpacity onPress={() => handleEditPlaylist(p)}>
+              <Icon name="pencil" size={20} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleDeletePlaylist(p.id, p.title)}>
+              <Icon name="delete" size={20} color={colors.danger} />
+            </TouchableOpacity>
+          </View>
         </View>
       ))}
     </ScrollView>
@@ -467,6 +691,7 @@ const [genreInput, setGenreInput] = useState('');
       {activeView === 'add_track' && renderAddTrack()}
       {activeView === 'list_tracks' && renderListTracks()}
       {activeView === 'categories' && renderCategories()}
+      {activeView === 'genres' && renderGenres()}
       {activeView === 'playlists' && renderPlaylists()}
       {activeView === 'users' && renderUsers()}
       {activeView === 'add_artist' && renderAddArtist()}
@@ -474,7 +699,7 @@ const [genreInput, setGenreInput] = useState('');
   );
 }
 
-function StatCard({icon, label, value}: {icon: string; label: string; value: number}) {
+function StatCard({ icon, label, value }: { icon: string; label: string; value: number }) {
   return (
     <View style={styles.statCard}>
       <Icon name={icon} size={28} color={colors.primary} />
@@ -484,7 +709,7 @@ function StatCard({icon, label, value}: {icon: string; label: string; value: num
   );
 }
 
-function MenuButton({icon, label, onPress}: {icon: string; label: string; onPress: () => void}) {
+function MenuButton({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.menuBtn} onPress={onPress}>
       <View style={styles.menuIconBox}>
@@ -513,6 +738,10 @@ const styles = StyleSheet.create({
   form: { gap: spacing.md },
   input: { backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, color: colors.white },
   label: { color: colors.white, fontWeight: '800', marginBottom: spacing.xs },
+  typeSelector: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+  typeBtn: { flex: 1, paddingVertical: spacing.sm, borderRadius: radius.sm, backgroundColor: colors.surfaceHigh, alignItems: 'center' },
+  activeType: { backgroundColor: colors.primary },
+  typeText: { color: colors.white, fontWeight: '800' },
   catPicker: { flexDirection: 'row' },
   catChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, backgroundColor: colors.surface, borderRadius: radius.full, marginRight: spacing.sm, borderWidth: 1, borderColor: colors.surface },
   activeChip: { borderColor: colors.primary, backgroundColor: colors.primaryDeep },

@@ -7,6 +7,8 @@ export type RootStackParamList = {
   PlaylistDetail: {playlistId: string};
   LikedSongs: undefined;
   Genre: {genreName: string};
+  Category: {categoryId: string; categoryName: string};
+  ArtistDetail: {artistName: string; artistImage: string};
 };
 
 export type MainTabParamList = {

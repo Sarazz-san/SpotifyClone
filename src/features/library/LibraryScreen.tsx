@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {
   Alert,
   Modal,
@@ -22,9 +22,13 @@ import {radius, spacing} from '../../constants/spacing';
 import {typography} from '../../constants/typography';
 import {useCatalog} from '../catalog/CatalogContext';
 import {usePlayer} from '../player/PlayerContext';
+import {useAuth} from '../auth/AuthContext';
+import {subscribeToFollowedArtists} from '../user/userService';
 import type {RootStackParamList} from '../../app/navigationTypes';
 import DocumentPicker from 'react-native-document-picker';
 import {uploadToCloudinary, createTrack} from '../admin/adminService';
+import {CreatePlaylistModal} from '../../components/CreatePlaylistModal';
+import {extractMetadata} from '../../utils/metadataParser';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -34,38 +38,39 @@ export function LibraryScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [activeFilter, setActiveFilter] = useState('Playlists');
   const [isAddMenuVisible, setIsAddMenuVisible] = useState(false);
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const {playlists, tracks, refresh} = useCatalog();
-  const {playTrack} = usePlayer();
+  const {playTrack, likedTrackIds} = usePlayer();
+  const {user} = useAuth();
+  const [followedArtists, setFollowedArtists] = useState<{id: string; name: string; image: string}[]>([]);
   
+  useEffect(() => {
+    if (user) {
+      return subscribeToFollowedArtists(user, setFollowedArtists);
+    }
+  }, [user]);
+
   const filteredPlaylists = playlists.filter(item => {
     if (activeFilter === 'Albums') return item.category === 'album';
     return item.category === 'playlist';
   });
   
-  const artists = useMemo(() => {
-    const uniqueArtistNames = Array.from(new Set(tracks.map(t => t.artist)));
-    return uniqueArtistNames.map(name => {
-      const track = tracks.find(t => t.artist === name);
-      return {
-        id: name,
-        title: name,
-        artist: 'Artiste',
-        album: track?.album || 'Artist',
-        durationMs: track?.durationMs || 0,
-        cover: track?.cover || require('../../assets/images/logo_spotify_green.png'),
-        audioUrl: track?.audioUrl || '',
-      };
-    });
-  }, [tracks]);
+  const displayArtists = useMemo(() => {
+    return followedArtists.map(fa => ({
+      id: fa.id,
+      title: fa.name,
+      artist: fa.name,
+      album: 'Artist',
+      durationMs: 0,
+      cover: fa.image ? {uri: fa.image} : require('../../assets/images/logo_spotify_green.png'),
+      audioUrl: '',
+    }));
+  }, [followedArtists]);
 
   const handleCreatePlaylist = () => {
     setIsAddMenuVisible(false);
-    Alert.alert(
-      'Nouvelle Playlist',
-      'Cette fonctionnalité est réservée à l’interface d’administration pour le moment.',
-      [{text: 'D’accord'}]
-    );
+    setIsCreateModalVisible(true);
   };
 
   const handleImportMusic = async () => {
@@ -79,14 +84,36 @@ export function LibraryScreen() {
       
       const audioUrl = await uploadToCloudinary(file.uri, 'auto');
       
+      let title = file.name || 'Imported Track';
+      let artist = 'Various Artists';
+      let album = 'Imports';
+      let genre = undefined;
+      let coverUrl = 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000&auto=format&fit=crop';
+      
+      try {
+        const metadata = await extractMetadata(file.uri);
+        if (metadata.title) title = metadata.title;
+        if (metadata.artist) artist = metadata.artist;
+        if (metadata.album) album = metadata.album;
+        if (metadata.genre) genre = metadata.genre;
+        if (metadata.coverUri) {
+          // The base64 can be uploaded or just passed as is. If uploading is needed, this works as data URI for cloudinary.
+          coverUrl = await uploadToCloudinary(metadata.coverUri, 'image');
+        }
+      } catch (err) {
+        console.log('No metadata found or error extracting', err);
+      }
+
       await createTrack({
-        title: file.name || 'Imported Track',
-        artist: 'Various Artists',
-        album: 'Imports',
-        category: 'Imported',
+        title,
+        artist,
+        album,
+        type: 'music',
+        genre,
         audioUrl,
-        coverUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000&auto=format&fit=crop',
+        coverUrl,
         durationMs: 180000,
+        userId: user?.id, // Added userId for privacy
       });
 
       await refresh();
@@ -128,6 +155,14 @@ export function LibraryScreen() {
               onPress={() => setActiveFilter(filter)}
             />
           ))}
+          <TouchableOpacity style={styles.menuButton} onPress={() => {}}>
+            <Icon name="tag-multiple" size={20} color={colors.text} />
+            <Text style={styles.menuButtonText}>Catégories</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuButton} onPress={() => {}}>
+            <Icon name="music-note" size={20} color={colors.text} />
+            <Text style={styles.menuButtonText}>Genres</Text>
+          </TouchableOpacity>
         </ScrollView>
 
         <View style={styles.sortRow}>
@@ -164,21 +199,28 @@ export function LibraryScreen() {
           </LinearGradient>
           <View style={styles.likedSongsInfo}>
             <Text style={styles.likedSongsTitle}>Liked Songs</Text>
-            <Text style={styles.likedSongsSubtitle}>Playlist • 3 songs</Text>
+            <Text style={styles.likedSongsSubtitle}>Playlist • {likedTrackIds.length} song{likedTrackIds.length !== 1 ? 's' : ''}</Text>
           </View>
         </TouchableOpacity>
 
         {activeFilter === 'Artists' ? (
-          artists.map(track => (
-            <TrackRow
-              item={track}
-              key={track.id}
-              meta="Artist"
-              onPress={() => playTrack(track)}
-              roundCover
-              trailingIcon="chevron-right"
+          displayArtists.length ? (
+            displayArtists.map(track => (
+              <TrackRow
+                item={track}
+                key={track.id}
+                meta="Artist"
+                onPress={() => navigation.navigate('ArtistDetail', {artistName: track.artist, artistImage: (track.cover as any)?.uri || ''})}
+                roundCover
+                trailingIcon="chevron-right"
+              />
+            ))
+          ) : (
+            <EmptyState
+              title="Aucun artiste suivi"
+              message="Appuyez sur Add artists pour suivre vos artistes préférés."
             />
-          ))
+          )
         ) : filteredPlaylists.length ? (
           filteredPlaylists.map(item => (
             <TrackRow
@@ -196,7 +238,10 @@ export function LibraryScreen() {
         )}
 
         <LibraryAction icon="plus" label="Add podcasts" />
-        <LibraryAction icon="plus" label="Add events and venues" />
+        <View style={styles.statCard}>
+          <Icon name="shape" size={30} color={colors.textMuted} />
+          <Text style={styles.statText}>Genres</Text>
+        </View>
         <LibraryAction 
           icon="plus" 
           label="Add artists" 
@@ -233,23 +278,37 @@ export function LibraryScreen() {
               icon="account-group" 
               title="Collaborative playlist" 
               description="Create a playlist together with friends" 
-              onPress={() => setIsAddMenuVisible(false)}
+              onPress={() => {
+                setIsAddMenuVisible(false);
+                Alert.alert('À venir', 'Les playlists collaboratives seront bientôt disponibles !');
+              }}
             />
             <MenuOption 
               icon="record-circle-outline" 
               title="Blend" 
               description="Combine your friends' tastes into a playlist" 
-              onPress={() => setIsAddMenuVisible(false)}
+              onPress={() => {
+                setIsAddMenuVisible(false);
+                Alert.alert('À venir', 'La fonctionnalité Blend sera bientôt disponible !');
+              }}
             />
             <MenuOption 
               icon="folder-outline" 
               title="Folder" 
               description="Organize your playlists" 
-              onPress={() => setIsAddMenuVisible(false)}
+              onPress={() => {
+                setIsAddMenuVisible(false);
+                Alert.alert('À venir', 'Les dossiers seront bientôt disponibles !');
+              }}
             />
           </View>
         </Pressable>
       </Modal>
+
+      <CreatePlaylistModal 
+        visible={isCreateModalVisible}
+        onClose={() => setIsCreateModalVisible(false)}
+      />
     </View>
   );
 }

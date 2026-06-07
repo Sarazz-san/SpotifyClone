@@ -14,6 +14,7 @@ type Props = {
   roundCover?: boolean;
   trailingIcon?: string;
   onPress?: () => void;
+  onIconPress?: () => void;
 };
 
 export function TrackRow({
@@ -22,6 +23,7 @@ export function TrackRow({
   roundCover = false,
   trailingIcon = 'plus',
   onPress,
+  onIconPress,
 }: Props) {
   const description =
     meta || ('artist' in item ? `${item.artist} - ${item.album}` : item.subtitle);
@@ -46,7 +48,11 @@ export function TrackRow({
           {description}
         </Text>
       </View>
-      <IconButton name={trailingIcon} onPress={onPress} variant="plain" />
+      <IconButton 
+        name={trailingIcon} 
+        onPress={onIconPress || onPress} 
+        variant="plain" 
+      />
     </Pressable>
   );
 }

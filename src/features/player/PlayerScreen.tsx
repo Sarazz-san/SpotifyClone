@@ -10,6 +10,8 @@ import {typography} from '../../constants/typography';
 import {IconButton} from '../../components/IconButton';
 import {useCatalog} from '../catalog/CatalogContext';
 import {usePlayer} from './PlayerContext';
+import {AddToPlaylistModal} from '../../components/AddToPlaylistModal';
+import {Track} from '../../models/Track';
 
 function formatTime(value: number) {
   const minutes = Math.floor(value / 60);
@@ -38,8 +40,10 @@ export function PlayerScreen() {
     togglePlayback,
     toggleRepeat,
     toggleShuffle,
+    upNext,
   } = usePlayer();
   const progress = duration > 0 ? Math.min(position / duration, 1) : 0;
+  const [selectedTrack, setSelectedTrack] = React.useState<Track | null>(null);
 
   return (
     <LinearGradient
@@ -69,6 +73,12 @@ export function PlayerScreen() {
             <Text style={styles.title}>{currentTrack.title}</Text>
             <Text style={styles.artist}>{currentTrack.artist}</Text>
           </View>
+          <IconButton
+            color={colors.textMuted}
+            name="playlist-plus"
+            onPress={() => setSelectedTrack(currentTrack)}
+            variant="plain"
+          />
           <IconButton
             color={isCurrentTrackLiked ? colors.primary : colors.textMuted}
             name={isCurrentTrackLiked ? 'heart' : 'heart-outline'}
@@ -125,7 +135,7 @@ export function PlayerScreen() {
 
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Up next</Text>
-          {tracks.slice(0, 3).map(track => (
+          {upNext.map(track => (
             <Pressable
               key={track.id}
               onPress={() => playTrack(track)}
@@ -141,7 +151,11 @@ export function PlayerScreen() {
               </View>
               {track.id === currentTrack.id ? (
                 <Icon color={colors.primary} name="volume-high" size={20} />
-              ) : null}
+              ) : (
+                <Pressable onPress={() => setSelectedTrack(track)} style={{padding: spacing.xs}}>
+                  <Icon color={colors.textMuted} name="dots-vertical" size={24} />
+                </Pressable>
+              )}
             </Pressable>
           ))}
         </View>
@@ -153,6 +167,12 @@ export function PlayerScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      <AddToPlaylistModal 
+        visible={!!selectedTrack}
+        track={selectedTrack}
+        onClose={() => setSelectedTrack(null)}
+      />
     </LinearGradient>
   );
 }

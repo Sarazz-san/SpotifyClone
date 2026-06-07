@@ -1,4 +1,16 @@
-import firestore from '@react-native-firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  onSnapshot,
+  serverTimestamp,
+  orderBy,
+  limit,
+  query,
+} from '@react-native-firebase/firestore';
 
 import {firebaseCollections} from '../../firebase/firebaseCollections';
 import {isFirebaseConfigured} from '../../firebase/firebaseAvailability';
@@ -11,8 +23,8 @@ type TrackHistoryPayload = {
   artist: string;
   album: string;
   audioUrl?: string;
-  playedAt?: ReturnType<typeof firestore.FieldValue.serverTimestamp>;
-  likedAt?: ReturnType<typeof firestore.FieldValue.serverTimestamp>;
+  playedAt?: ReturnType<typeof serverTimestamp>;
+  likedAt?: ReturnType<typeof serverTimestamp>;
 };
 
 function cleanObject<T extends Record<string, unknown>>(value: T) {
@@ -31,16 +43,22 @@ function toTrackPayload(track: Track): Omit<TrackHistoryPayload, 'playedAt' | 'l
   }) as Omit<TrackHistoryPayload, 'playedAt' | 'likedAt'>;
 }
 
+function getDb() {
+  return getFirestore();
+}
+
 export async function upsertUserProfile(user: AppUser) {
   if (!isFirebaseConfigured() || user.source !== 'firebase') {
     return;
   }
 
-  await firestore().collection(firebaseCollections.users).doc(user.id).set(
+  const db = getDb();
+  await setDoc(
+    doc(collection(db, firebaseCollections.users), user.id),
     cleanObject({
       email: user.email,
       displayName: user.displayName,
-      updatedAt: firestore.FieldValue.serverTimestamp(),
+      updatedAt: serverTimestamp(),
     }),
     {merge: true},
   );
@@ -51,10 +69,10 @@ export async function getUserProfile(userId: string): Promise<Partial<AppUser> |
     return null;
   }
 
-  const snapshot = await firestore()
-    .collection(firebaseCollections.users)
-    .doc(userId)
-    .get();
+  const db = getDb();
+  const snapshot = await getDoc(
+    doc(collection(db, firebaseCollections.users), userId),
+  );
 
   return snapshot.exists() ? (snapshot.data() as Partial<AppUser>) : null;
 }
@@ -64,18 +82,18 @@ export async function saveRecentlyPlayed(user: AppUser | null, track: Track) {
     return;
   }
 
-  await firestore()
-    .collection(firebaseCollections.users)
-    .doc(user.id)
-    .collection(firebaseCollections.recentlyPlayed)
-    .doc(track.id)
-    .set(
-      cleanObject({
-        ...toTrackPayload(track),
-        playedAt: firestore.FieldValue.serverTimestamp(),
-      }),
-      {merge: true},
-    );
+  const db = getDb();
+  await setDoc(
+    doc(
+      collection(doc(collection(db, firebaseCollections.users), user.id), firebaseCollections.recentlyPlayed),
+      track.id,
+    ),
+    cleanObject({
+      ...toTrackPayload(track),
+      playedAt: serverTimestamp(),
+    }),
+    {merge: true},
+  );
 }
 
 export async function saveLikedTrack(user: AppUser | null, track: Track) {
@@ -83,18 +101,18 @@ export async function saveLikedTrack(user: AppUser | null, track: Track) {
     return;
   }
 
-  await firestore()
-    .collection(firebaseCollections.users)
-    .doc(user.id)
-    .collection(firebaseCollections.likedTracks)
-    .doc(track.id)
-    .set(
-      cleanObject({
-        ...toTrackPayload(track),
-        likedAt: firestore.FieldValue.serverTimestamp(),
-      }),
-      {merge: true},
-    );
+  const db = getDb();
+  await setDoc(
+    doc(
+      collection(doc(collection(db, firebaseCollections.users), user.id), firebaseCollections.likedTracks),
+      track.id,
+    ),
+    cleanObject({
+      ...toTrackPayload(track),
+      likedAt: serverTimestamp(),
+    }),
+    {merge: true},
+  );
 }
 
 export async function removeLikedTrack(user: AppUser | null, trackId: string) {
@@ -102,12 +120,13 @@ export async function removeLikedTrack(user: AppUser | null, trackId: string) {
     return;
   }
 
-  await firestore()
-    .collection(firebaseCollections.users)
-    .doc(user.id)
-    .collection(firebaseCollections.likedTracks)
-    .doc(trackId)
-    .delete();
+  const db = getDb();
+  await deleteDoc(
+    doc(
+      collection(doc(collection(db, firebaseCollections.users), user.id), firebaseCollections.likedTracks),
+      trackId,
+    ),
+  );
 }
 
 export async function toggleLikeTrack(
@@ -119,18 +138,18 @@ export async function toggleLikeTrack(
     return;
   }
 
-  const document = firestore()
-    .collection(firebaseCollections.users)
-    .doc(userId)
-    .collection(firebaseCollections.likedTracks)
-    .doc(trackId);
+  const db = getDb();
+  const trackDoc = doc(
+    collection(doc(collection(db, firebaseCollections.users), userId), firebaseCollections.likedTracks),
+    trackId,
+  );
 
   if (isLiked) {
-    await document.delete();
+    await deleteDoc(trackDoc);
     return;
   }
 
-  await document.set({likedAt: firestore.FieldValue.serverTimestamp()}, {merge: true});
+  await setDoc(trackDoc, {likedAt: serverTimestamp()}, {merge: true});
 }
 
 export async function saveSearchQuery(userId: string, queryText: string) {
@@ -140,15 +159,17 @@ export async function saveSearchQuery(userId: string, queryText: string) {
     return;
   }
 
-  await firestore()
-    .collection(firebaseCollections.users)
-    .doc(userId)
-    .collection('searchHistory')
-    .doc(normalizedQuery)
-    .set({
+  const db = getDb();
+  await setDoc(
+    doc(
+      collection(doc(collection(db, firebaseCollections.users), userId), 'searchHistory'),
+      normalizedQuery,
+    ),
+    {
       query: normalizedQuery,
-      searchedAt: firestore.FieldValue.serverTimestamp(),
-    });
+      searchedAt: serverTimestamp(),
+    },
+  );
 }
 
 export async function deleteSearchQuery(userId: string, queryText: string) {
@@ -158,12 +179,13 @@ export async function deleteSearchQuery(userId: string, queryText: string) {
     return;
   }
 
-  await firestore()
-    .collection(firebaseCollections.users)
-    .doc(userId)
-    .collection('searchHistory')
-    .doc(normalizedQuery)
-    .delete();
+  const db = getDb();
+  await deleteDoc(
+    doc(
+      collection(doc(collection(db, firebaseCollections.users), userId), 'searchHistory'),
+      normalizedQuery,
+    ),
+  );
 }
 
 export function subscribeToSearchHistory(
@@ -175,19 +197,20 @@ export function subscribeToSearchHistory(
     return () => {};
   }
 
-  return firestore()
-    .collection(firebaseCollections.users)
-    .doc(userId)
-    .collection('searchHistory')
-    .orderBy('searchedAt', 'desc')
-    .limit(10)
-    .onSnapshot(snapshot => {
-      onChange(
-        snapshot.docs
-          .map(document => document.data().query)
-          .filter((query): query is string => typeof query === 'string'),
-      );
-    });
+  const db = getDb();
+  const q = query(
+    collection(doc(collection(db, firebaseCollections.users), userId), 'searchHistory'),
+    orderBy('searchedAt', 'desc'),
+    limit(10),
+  );
+
+  return onSnapshot(q, snapshot => {
+    onChange(
+      snapshot.docs
+        .map(document => document.data().query)
+        .filter((q): q is string => typeof q === 'string'),
+    );
+  });
 }
 
 export function subscribeToLikedTrackIds(
@@ -199,13 +222,13 @@ export function subscribeToLikedTrackIds(
     return () => {};
   }
 
-  return firestore()
-    .collection(firebaseCollections.users)
-    .doc(user.id)
-    .collection(firebaseCollections.likedTracks)
-    .onSnapshot(snapshot => {
+  const db = getDb();
+  return onSnapshot(
+    collection(doc(collection(db, firebaseCollections.users), user.id), firebaseCollections.likedTracks),
+    snapshot => {
       onChange(snapshot.docs.map(document => document.id));
-    });
+    },
+  );
 }
 
 export function subscribeToRecentlyPlayed(
@@ -217,26 +240,79 @@ export function subscribeToRecentlyPlayed(
     return () => {};
   }
 
-  return firestore()
-    .collection(firebaseCollections.users)
-    .doc(user.id)
-    .collection(firebaseCollections.recentlyPlayed)
-    .orderBy('playedAt', 'desc')
-    .limit(20)
-    .onSnapshot(snapshot => {
-      onChange(
-        snapshot.docs.map(document => {
-          const data = document.data();
-          return {
-            id: document.id,
-            title: typeof data.title === 'string' ? data.title : 'Untitled track',
-            artist: typeof data.artist === 'string' ? data.artist : 'Unknown artist',
-            album: typeof data.album === 'string' ? data.album : 'Single',
-            durationMs: 0,
-            cover: require('../../assets/images/logo_spotify_green.png'),
-            audioUrl: typeof data.audioUrl === 'string' ? data.audioUrl : '',
-          };
-        }),
-      );
+  const db = getDb();
+  const q = query(
+    collection(doc(collection(db, firebaseCollections.users), user.id), firebaseCollections.recentlyPlayed),
+    orderBy('playedAt', 'desc'),
+    limit(20),
+  );
+
+  return onSnapshot(q, snapshot => {
+    onChange(
+      snapshot.docs.map(document => {
+        const data = document.data();
+        return {
+          id: document.id,
+          title: typeof data.title === 'string' ? data.title : 'Untitled track',
+          artist: typeof data.artist === 'string' ? data.artist : 'Unknown artist',
+          album: typeof data.album === 'string' ? data.album : 'Single',
+          durationMs: 0,
+          cover: require('../../assets/images/logo_spotify_green.png'),
+          audioUrl: typeof data.audioUrl === 'string' ? data.audioUrl : '',
+        };
+      }),
+    );
+  });
+}
+
+export async function toggleFollowArtist(
+  user: AppUser | null,
+  artist: {id: string; name: string; image: string},
+  isFollowed: boolean,
+) {
+  if (!isFirebaseConfigured() || user?.source !== 'firebase') {
+    return;
+  }
+
+  const db = getDb();
+  const artistDoc = doc(
+    collection(doc(collection(db, firebaseCollections.users), user.id), 'followedArtists'),
+    artist.id,
+  );
+
+  if (isFollowed) {
+    await deleteDoc(artistDoc);
+  } else {
+    await setDoc(artistDoc, {
+      name: artist.name,
+      image: artist.image,
+      followedAt: serverTimestamp(),
     });
+  }
+}
+
+export function subscribeToFollowedArtists(
+  user: AppUser | null,
+  onChange: (artists: {id: string; name: string; image: string}[]) => void,
+) {
+  if (!isFirebaseConfigured() || user?.source !== 'firebase') {
+    onChange([]);
+    return () => {};
+  }
+
+  const db = getDb();
+  const q = query(
+    collection(doc(collection(db, firebaseCollections.users), user.id), 'followedArtists'),
+    orderBy('followedAt', 'desc'),
+  );
+
+  return onSnapshot(q, snapshot => {
+    onChange(
+      snapshot.docs.map(docu => ({
+        id: docu.id,
+        name: docu.data().name,
+        image: docu.data().image,
+      }))
+    );
+  });
 }

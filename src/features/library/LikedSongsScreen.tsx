@@ -17,24 +17,19 @@ import {radius, spacing} from '../../constants/spacing';
 import {useCatalog} from '../catalog/CatalogContext';
 import {usePlayer} from '../player/PlayerContext';
 import type {RootStackParamList} from '../../app/navigationTypes';
+import {AddToPlaylistModal} from '../../components/AddToPlaylistModal';
+import {Track} from '../../models/Track';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export function LikedSongsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const {tracks} = useCatalog();
-  const {playTrack, currentTrack} = usePlayer();
+  const {playTrack, currentTrack, likedTrackIds} = usePlayer();
+  const [selectedTrack, setSelectedTrack] = React.useState<Track | null>(null);
 
-  // In a real app, we'd fetch this from a 'likedTracks' collection
-  // For this version, we'll use the likedTrackIds from PlayerContext if we wanted to be perfectly accurate
-  // But let's assume we want to show all tracks that have been liked.
-  // Actually, let's just use the tracks that match the liked status.
-  
-  // Note: To be fully consistent, I should expose likedTrackIds from PlayerContext or a dedicated LikedContext.
-  // Given our current structure, let's filter tracks from catalog.
-  // (We'll assume for the demo that some tracks are pre-liked or we just show a placeholder if empty)
-  
-  const likedSongs = tracks.filter(t => t.id !== 'empty-catalog-track').slice(0, 3); // Mock for now, ideally use real IDs
+  // Filter tracks that are liked by the user
+  const likedSongs = tracks.filter(t => likedTrackIds.includes(t.id));
 
   return (
     <View style={styles.container}>
@@ -75,7 +70,8 @@ export function LikedSongsScreen() {
                 key={track.id}
                 item={track}
                 onPress={() => playTrack(track)}
-                trailingIcon={track.id === currentTrack?.id ? 'equalizer' : 'heart'}
+                onIconPress={() => setSelectedTrack(track)}
+                trailingIcon={track.id === currentTrack?.id ? 'equalizer' : 'dots-vertical'}
               />
             ))
           ) : (
@@ -83,6 +79,12 @@ export function LikedSongsScreen() {
           )}
         </View>
       </ScrollView>
+
+      <AddToPlaylistModal 
+        visible={!!selectedTrack}
+        track={selectedTrack}
+        onClose={() => setSelectedTrack(null)}
+      />
     </View>
   );
 }

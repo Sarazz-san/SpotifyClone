@@ -9,4 +9,6 @@ export type Track = {
   cover: ImageSourcePropType;
   audioUrl: string;
   genre?: string;
+  userId?: string;
+  type: 'music' | 'podcast';
 };

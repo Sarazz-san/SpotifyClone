@@ -1,4 +1,4 @@
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from '@react-native-firebase/auth';
+import { getAuth, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from '@react-native-firebase/auth';
 
 import {isFirebaseConfigured} from '../../firebase/firebaseAvailability';
 
@@ -17,11 +17,12 @@ function getDisplayName(email: string | null | undefined) {
 export function toAppUser(firebaseUser: {
   uid: string;
   email: string | null;
+  displayName?: string | null;
 }): AppUser {
   return {
     id: firebaseUser.uid,
     email: firebaseUser.email || 'user@spotifyclone.app',
-    displayName: getDisplayName(firebaseUser.email),
+    displayName: firebaseUser.displayName || getDisplayName(firebaseUser.email),
     source: 'firebase',
   };
 }
@@ -45,7 +46,7 @@ export async function loginWithEmail(email: string, password: string) {
   return toAppUser(credential.user);
 }
 
-export async function registerWithEmail(email: string, password: string) {
+export async function registerWithEmail(email: string, password: string, displayName?: string) {
   if (!isFirebaseConfigured()) {
     return createDemoUser(email);
   }
@@ -56,13 +57,24 @@ export async function registerWithEmail(email: string, password: string) {
     email,
     password,
   );
-  return toAppUser(credential.user);
+  // Save displayName to Firebase user profile
+  if (displayName) {
+    await updateProfile(credential.user, {displayName});
+  }
+  return toAppUser({...credential.user, displayName: displayName || credential.user.displayName});
 }
 
 export async function logoutFromAuth() {
   if (isFirebaseConfigured()) {
     await signOut(getAuth());
   }
+}
+
+export async function resetPassword(email: string) {
+  if (!isFirebaseConfigured()) {
+    throw new Error('Firebase non configuré');
+  }
+  await sendPasswordResetEmail(getAuth(), email);
 }
 
 export function subscribeToAuthState(

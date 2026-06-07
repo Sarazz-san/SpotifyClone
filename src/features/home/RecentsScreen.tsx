@@ -10,16 +10,29 @@ import {CategoryChip} from '../../components/CategoryChip';
 
 import {useAuth} from '../auth/AuthContext';
 import {subscribeToRecentlyPlayed} from '../user/userService';
+import {useCatalog} from '../catalog/CatalogContext';
 import type {Track} from '../../models/Track';
+import {usePlayer} from '../player/PlayerContext';
+import {AddToPlaylistModal} from '../../components/AddToPlaylistModal';
 
 export function RecentsScreen() {
   const navigation = useNavigation();
   const {user} = useAuth();
-  const [recentlyPlayed, setRecentlyPlayed] = React.useState<Track[]>([]);
+  const {playTrack} = usePlayer();
+  const {tracks: allTracks} = useCatalog();
+  const [recentlyPlayedRaw, setRecentlyPlayedRaw] = React.useState<Track[]>([]);
+  const [selectedTrack, setSelectedTrack] = React.useState<Track | null>(null);
 
   React.useEffect(() => {
-    if (user) return subscribeToRecentlyPlayed(user, setRecentlyPlayed);
+    if (user) return subscribeToRecentlyPlayed(user, setRecentlyPlayedRaw);
   }, [user]);
+
+  const recentlyPlayed = React.useMemo(() => {
+    return recentlyPlayedRaw.map(recent => {
+      const fullTrack = allTracks.find(t => t.id === recent.id);
+      return fullTrack || recent;
+    });
+  }, [recentlyPlayedRaw, allTracks]);
 
   return (
     <View style={styles.container}>
@@ -39,16 +52,28 @@ export function RecentsScreen() {
         <Text style={styles.sectionTitle}>Today</Text>
 
         {recentlyPlayed.map((item, index) => (
-          <TouchableOpacity key={`${item.id}-${index}`} style={styles.itemRow}>
+          <TouchableOpacity 
+            key={`${item.id}-${index}`} 
+            style={styles.itemRow}
+            onPress={() => playTrack(item)}
+          >
             <Image source={item.cover} style={styles.cover} />
             <View style={styles.itemInfo}>
               <Text style={styles.itemTitle}>{item.title}</Text>
               <Text style={styles.itemSubtitle}>Song • {item.artist}</Text>
             </View>
-            <Icon name="dots-vertical" size={24} color={colors.textMuted} />
+            <TouchableOpacity onPress={() => setSelectedTrack(item)}>
+              <Icon name="dots-vertical" size={24} color={colors.textMuted} />
+            </TouchableOpacity>
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      <AddToPlaylistModal 
+        visible={!!selectedTrack}
+        track={selectedTrack}
+        onClose={() => setSelectedTrack(null)}
+      />
     </View>
   );
 }

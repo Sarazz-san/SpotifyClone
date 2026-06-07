@@ -36,8 +36,11 @@ type PlayerContextValue = {
   playbackStatus: PlaybackStatus;
   position: number;
   hasPlayableAudio: boolean;
+  likedTrackIds: string[];
+  showMiniPlayer: boolean;
   next: () => Promise<void>;
   playTrack: (track: Track) => Promise<void>;
+  closePlayer: () => void;
   previous: () => Promise<void>;
   seekBy: (offset: number) => void;
   seekTo: (time: number) => void;
@@ -45,6 +48,7 @@ type PlayerContextValue = {
   togglePlayback: () => Promise<void>;
   toggleRepeat: () => void;
   toggleShuffle: () => void;
+  upNext: Track[];
 };
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
@@ -73,6 +77,8 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>('idle');
   const [position, setPosition] = useState(0);
+  const [showMiniPlayer, setShowMiniPlayer] = useState(false);
+
   const hasPlayableAudio = Boolean(currentTrack.audioUrl);
   const isCurrentTrackLiked = likedTrackIds.includes(currentTrack.id);
 
@@ -82,6 +88,12 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
       setDuration(0);
       setPosition(0);
       setIsPlaying(false);
+      setShowMiniPlayer(false);
+      return;
+    }
+
+    // If the current track is the empty placeholder, do not auto-select a track
+    if (currentTrack.id === emptyTrack.id) {
       return;
     }
 
@@ -103,6 +115,7 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
     setPlaybackStatus(track.audioUrl ? 'loading' : 'error');
     setPosition(0);
     setIsPlaying(Boolean(track.audioUrl));
+    setShowMiniPlayer(true);
     await saveRecentlyPlayed(user, track);
   }, [user]);
 
@@ -116,21 +129,32 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
     setIsPlaying(currentValue => !currentValue);
   }, [hasPlayableAudio]);
 
+  const closePlayer = useCallback(() => {
+    setIsPlaying(false);
+    setShowMiniPlayer(false);
+    setCurrentTrack(emptyTrack);
+    setPosition(0);
+    setPlaybackStatus('idle');
+  }, []);
+
   const seekTo = useCallback((time: number) => {
+    if (currentTrack.id === emptyTrack.id) return;
     const nextPosition = Math.max(0, Math.min(time, duration));
     audioRef.current?.seek(nextPosition);
     setPosition(nextPosition);
-  }, [duration]);
+  }, [currentTrack.id, duration]);
 
   const seekBy = useCallback((offset: number) => {
+    if (currentTrack.id === emptyTrack.id) return;
     setPosition(currentPosition => {
       const nextPosition = Math.max(0, Math.min(currentPosition + offset, duration));
       audioRef.current?.seek(nextPosition);
       return nextPosition;
     });
-  }, [duration]);
+  }, [currentTrack.id, duration]);
 
   const toggleLike = useCallback(async () => {
+    if (currentTrack.id === emptyTrack.id) return;
     if (isCurrentTrackLiked) {
       setLikedTrackIds(trackIds =>
         trackIds.filter(trackId => trackId !== currentTrack.id),
@@ -152,7 +176,7 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
   }, []);
 
   const next = useCallback(async () => {
-    if (!tracks.length) {
+    if (!tracks.length || currentTrack.id === emptyTrack.id) {
       return;
     }
 
@@ -169,7 +193,7 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
   }, [currentTrack.id, isShuffleEnabled, playTrack, tracks]);
 
   const previous = useCallback(async () => {
-    if (!tracks.length) {
+    if (!tracks.length || currentTrack.id === emptyTrack.id) {
       return;
     }
 
@@ -184,16 +208,19 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
   }, [currentTrack.id, playTrack, position, seekTo, tracks]);
 
   const handleLoad = useCallback((data: OnLoadData) => {
+    if (currentTrack.id === emptyTrack.id) return;
     setDuration(data.duration || currentTrack.durationMs / 1000);
     setPlaybackError(null);
     setPlaybackStatus('ready');
-  }, [currentTrack.durationMs]);
+  }, [currentTrack.id, currentTrack.durationMs]);
 
   const handleProgress = useCallback((data: OnProgressData) => {
+    if (currentTrack.id === emptyTrack.id) return;
     setPosition(data.currentTime);
-  }, []);
+  }, [currentTrack.id]);
 
   const handleEnd = useCallback(() => {
+    if (currentTrack.id === emptyTrack.id) return;
     if (isRepeatEnabled) {
       seekTo(0);
       setIsPlaying(true);
@@ -201,15 +228,27 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
     }
 
     next();
-  }, [isRepeatEnabled, next, seekTo]);
+  }, [currentTrack.id, isRepeatEnabled, next, seekTo]);
 
   const handleError = useCallback(() => {
+    if (currentTrack.id === emptyTrack.id) return;
     setIsPlaying(false);
     setPlaybackStatus('error');
     setPlaybackError(
       'Lecture impossible. Vérifiez votre connexion internet.',
     );
-  }, []);
+  }, [currentTrack.id]);
+
+  const upNext = useMemo(() => {
+    if (!tracks.length || currentTrack.id === emptyTrack.id) return [];
+    if (isShuffleEnabled) {
+      // Just take some random tracks that are not current for visual purpose
+      return tracks.filter(t => t.id !== currentTrack.id).sort(() => Math.random() - 0.5).slice(0, 3);
+    }
+    const index = tracks.findIndex(t => t.id === currentTrack.id);
+    if (index === -1) return tracks.slice(0, 3);
+    return tracks.slice(index + 1).concat(tracks.slice(0, index)).slice(0, 3);
+  }, [tracks, currentTrack.id, isShuffleEnabled]);
 
   const value = useMemo(
     () => ({
@@ -223,8 +262,11 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
       playbackStatus,
       position,
       hasPlayableAudio,
+      likedTrackIds,
+      showMiniPlayer,
       next,
       playTrack,
+      closePlayer,
       previous,
       seekBy,
       seekTo,
@@ -232,15 +274,18 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
       togglePlayback,
       toggleRepeat,
       toggleShuffle,
+      upNext,
     }),
     [
       currentTrack,
       duration,
       hasPlayableAudio,
+      likedTrackIds,
       isCurrentTrackLiked,
       isPlaying,
       isRepeatEnabled,
       isShuffleEnabled,
+      showMiniPlayer,
       next,
       playTrack,
       playbackError,
@@ -253,6 +298,7 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
       togglePlayback,
       toggleRepeat,
       toggleShuffle,
+      upNext,
     ],
   );
 

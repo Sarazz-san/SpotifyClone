@@ -18,8 +18,17 @@ export function BottomMiniPlayer() {
     playbackStatus,
     position,
     togglePlayback,
+    isCurrentTrackLiked,
+    toggleLike,
+    closePlayer,
+    showMiniPlayer,
   } = usePlayer();
   const progress = duration > 0 ? Math.min(position / duration, 1) : 0;
+
+  // Don't show if hidden by user or no track loaded
+  if (!showMiniPlayer || currentTrack.id === 'empty-catalog-track') {
+    return null;
+  }
 
   return (
     <Pressable
@@ -35,10 +44,20 @@ export function BottomMiniPlayer() {
         </Text>
       </View>
       <Icon color={colors.primary} name="cellphone-sound" size={24} />
-      <IconButton name="plus-circle-outline" variant="plain" />
+      <IconButton 
+        name={isCurrentTrackLiked ? 'heart' : 'heart-outline'} 
+        color={isCurrentTrackLiked ? colors.primary : colors.text}
+        onPress={toggleLike}
+        variant="plain" 
+      />
       <IconButton
         name={isPlaying ? 'pause' : 'play'}
         onPress={togglePlayback}
+        variant="plain"
+      />
+      <IconButton
+        name="close"
+        onPress={closePlayer}
         variant="plain"
       />
       <View style={styles.progressTrack}>
