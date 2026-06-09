@@ -52,7 +52,7 @@ type PlayerContextValue = {
 };
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
-const fallbackCover = require('../../assets/images/logo_spotify_green.png');
+const fallbackCover = require('../../assets/images/cover_abstract_neon.png');
 
 const emptyTrack: Track = {
   id: 'empty-catalog-track',

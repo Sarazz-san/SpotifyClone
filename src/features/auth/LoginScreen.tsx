@@ -17,7 +17,7 @@ import {typography} from '../../constants/typography';
 import {isFirebaseConfigured} from '../../firebase/firebaseAvailability';
 import {useAuth} from './AuthContext';
 
-const logo = require('../../assets/images/logo_spotify_green.png');
+const logo = require('../../assets/images/cover_abstract_neon.png');
 
 export function LoginScreen() {
   const {error, isLoading, login, register} = useAuth();

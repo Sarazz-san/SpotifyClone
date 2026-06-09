@@ -5,7 +5,7 @@ const coverAbstract = require('../assets/images/cover_abstract_neon.png');
 const coverSynthwave = require('../assets/images/cover_synthwave.png');
 const coverDaylist = require('../assets/images/cover_daylist.png');
 const coverPodcast = require('../assets/images/cover_daily_podcast.png');
-const logo = require('../assets/images/logo_spotify_green.png');
+const logo = require('../assets/images/cover_abstract_neon.png');
 
 export const tracks: Track[] = [
   {
