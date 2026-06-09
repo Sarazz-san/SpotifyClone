@@ -20,8 +20,8 @@ yarn-error.log*
 .next
 .nuxt
 .cache/
-package-lock.json
-# On garde yarn.lock si on utilise yarn, mais ici on semble utiliser npm (vu package-lock.json)
+# package-lock.json (removed to allow GitHub Actions builds)
+# On garde yarn.lock si on utilise yarn, mais ici on semble utiliser npm (vu # package-lock.json (removed to allow GitHub Actions builds))
 
 # --- React Native ---
 .metro-health-check*
