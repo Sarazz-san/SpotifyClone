@@ -1,22 +1,22 @@
 export const colors = {
-  // Spotify Official Palette
-  primary: '#1DB954', // Spotify Green
-  primaryContainer: '#1ed760',
-  primaryDeep: '#1aa34a',
+  // Custom Identity Palette
+  primary: '#A855F7', // Vibrant Purple (Surbrillance choisie par l'utilisateur)
+  primaryContainer: '#C084FC',
+  primaryDeep: '#7E22CE',
   
   background: '#121212',
-  backgroundDeep: '#191414', // Spotify Black
-  surface: '#282828',
-  surfaceHigh: '#3e3e3e',
-  surfaceHighest: '#4f4f4f',
+  backgroundDeep: '#0F172A', // Un noir bleuté profond pour faire ressortir le violet
+  surface: '#1E293B',
+  surfaceHigh: '#334155',
+  surfaceHighest: '#475569',
   
   white: '#FFFFFF',
   black: '#000000',
   
-  text: '#FFFFFF',
-  textMuted: '#b3b3b3',
-  textDim: '#535353',
+  text: '#F8FAFC',
+  textMuted: '#94A3B8',
+  textDim: '#64748B',
   
-  danger: '#f15e6c',
-  success: '#1DB954',
+  danger: '#EF4444',
+  success: '#10B981',
 };

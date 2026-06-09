@@ -39,13 +39,13 @@ export function LikedSongsScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <LinearGradient
-          colors={['#1DB954', colors.background]}
+          colors={[colors.primary, colors.background]}
           style={styles.header}
           start={{x: 0, y: 0}}
           end={{x: 0, y: 1}}
         >
           <LinearGradient
-            colors={['#1DB954', '#191414']}
+            colors={[colors.primary, colors.backgroundDeep]}
             style={styles.coverPlaceholder}
             start={{x: 0, y: 0}}
             end={{x: 1, y: 1}}

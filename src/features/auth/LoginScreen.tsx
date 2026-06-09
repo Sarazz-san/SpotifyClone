@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.full,
-    backgroundColor: 'rgba(29,185,84,0.14)',
+    backgroundColor: 'rgba(168,85,247,0.14)',
     marginBottom: spacing.xl,
   },
   logo: {
