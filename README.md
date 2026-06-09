@@ -1,113 +1,69 @@
-# ShakeUnlockApp
+# SpotifyClone
 
-Application React Native qui se déverrouille par **secousses** (seuil dynamique selon le jour de la semaine) ou par **empreinte digitale**.
+Une application mobile de streaming musical inspirée de Spotify, développée avec **React Native** et **TypeScript**.
 
 ---
 
-## 🚀 Installation et premier lancement
+## 🚀 Fonctionnalités actuelles
+
+- **Authentification** : Intégration avec Firebase Auth pour la gestion des utilisateurs.
+- **Catalogue Musical** : Navigation dans les playlists, albums et titres.
+- **Lecteur Audio** : Lecteur mini et plein écran avec contrôles de lecture.
+- **Base de données** : Utilisation de Firebase Firestore pour stocker les données du catalogue.
+- **Interface UI** : Composants stylisés (AlbumCard, TrackRow, BottomMiniPlayer, etc.) utilisant Linear Gradient et Vector Icons.
+
+---
+
+## 📁 Structure du projet
+
+L'architecture suit une approche modulaire basée sur les fonctionnalités (`features`) :
+
+- `src/app` : Configuration de la navigation (React Navigation).
+- `src/components` : Composants UI réutilisables.
+- `src/constants` : Thèmes de couleurs, typographie et espacements.
+- `src/features` : Logique métier découpée par domaine (auth, catalog, player, search, etc.).
+- `src/firebase` : Configuration et services liés à Firebase.
+- `src/models` : Définitions des modèles de données (Track, Playlist).
+- `src/assets` : Images et ressources statiques.
+
+---
+
+## 🛠️ Installation et Lancement
 
 ```bash
 # 1. Cloner le dépôt
-git clone https://github.com/ton-compte/ShakeUnlockApp.git
-cd ShakeUnlockApp
+git clone https://github.com/Sarazz-san/SpotifyClone.git
+cd SpotifyClone
 
 # 2. Installer les dépendances
 npm install
 
 # 3. Lancer Metro (dans un terminal)
-npx react-native start --reset-cache
+npm start
 
-# 4. Dans un autre terminal, lancer l'app
-npx react-native run-android
-```
+# 4. Lancer sur Android
+npm run android
 
-> Sur un vrai appareil Android (USB) : exécute `adb reverse tcp:8081 tcp:8081` avant `run-android`
-
----
-
-## 📁 Structure et rôle des modules
-
-Le projet est découpé en **5 modules indépendants** qui communiquent via un contrat (`src/shared/interfaces.js`).  
-Chaque module est développé sur sa propre branche.
-
-### 🔐 `lockManager`
-**Rôle** : Cœur de l'application. Gère l'état global (verrouillé / déverrouillé).  
-**Apport** : Tous les autres modules lisent ou modifient cet état. C'est lui qui décide si l'écran verrouillé ou déverrouillé s'affiche.  
-**Exporte** : `useLock()` (hook avec `isLocked`, `lock()`, `unlock()`)
-
-### 📳 `shakeDetector`
-**Rôle** : Détecte les secousses du téléphone et calcule le seuil requis selon le jour de la semaine.  
-**Apport** : Permet de déverrouiller l'app sans toucher l'écran. Quand le nombre de secousses atteint le seuil, il demande à `lockManager` de déverrouiller.  
-**Exporte** : `startListening()`, `stopListening()`
-
-### 👆 `fingerprintScanner`
-**Rôle** : Interface avec le capteur d'empreinte digitale du téléphone.  
-**Apport** : Offre une seconde méthode de déverrouillage, plus classique et sécurisée. En cas de succès, il demande à `lockManager` de déverrouiller.  
-**Exporte** : `scan()` (retourne une promesse), `isAvailable()`
-
-### 🎨 `ui`
-**Rôle** : Affiche l'interface utilisateur (écran verrouillé / déverrouillé).  
-**Apport** : Rend l'app visible et interactive. Il affiche l'état fourni par `lockManager` et expose le bouton "Reverrouiller". Il ne contient **pas** la logique de déverrouillage.  
-**Exporte** : `LockedScreen`, `UnlockedScreen`, `LockButton`
-
-### 🔗 `integration` (toi, lead)
-**Rôle** : Assemble tous les modules dans `App.js`.  
-**Apport** : C'est le chef d'orchestre. Il branche les détecteurs pour qu'ils appellent `unlock()`, connecte l'UI à `useLock()`, et fait en sorte que le bouton "Reverrouiller" appelle `lock()`.  
-**Exporte** : Rien de spécifique — c'est le point d'entrée final.
-
----
-
-## 🌿 Branches associées
-
-| Module | Branche |
-|--------|---------|
-| `lockManager` | `feat/lock-manager` |
-| `shakeDetector` | `feat/shake-detector` |
-| `fingerprintScanner` | `feat/fingerprint` |
-| `ui` | `feat/ui` |
-| `integration` | `feat/integration` |
-
-```bash
-git checkout feat/nom-de-votre-module
+# 5. Lancer sur iOS
+npm run ios
 ```
 
 ---
 
-## 🧪 Tester son module indépendamment
+## 🔧 Technologies utilisées
 
-Chacun peut tester son module seul grâce aux mocks.
-
-**Exemple** : le module `ui` peut créer `src/mocks/mockLockManager.js` qui simule `useLock()` sans avoir besoin du vrai `lockManager`.
-
-```javascript
-// src/mocks/mockLockManager.js
-export const useMockLock = () => ({
-  isLocked: true,
-  lock: () => console.log('[mock] lock'),
-  unlock: () => console.log('[mock] unlock'),
-});
-```
-
-Puis dans son code, il remplace temporairement l'import du vrai module par le mock.
+- **React Native** (0.85.2)
+- **TypeScript**
+- **Firebase** (App, Auth, Firestore)
+- **React Navigation** (Native, Stack, Bottom Tabs)
+- **React Native Video** (pour la lecture audio/vidéo)
+- **Lucide React Native / Vector Icons**
 
 ---
 
-## ⚠️ Règles d'or (pour éviter l'enfer à la fusion)
+## 📝 À faire / Prochaines étapes
 
-1. **Ne jamais** modifier le dossier d'un autre module.
-2. **Ne jamais** modifier `src/shared/interfaces.js` sans validation du groupe.
-3. **Committer régulièrement** sur sa propre branche.
-4. **Ne pas merger** sur `main` sans accord du lead.
-
----
-
-## 🔧 Dépendances principales
-
-```bash
-npm install react-native-biometrics   # pour fingerprintScanner
-npm install react-native-shake        # pour shakeDetector
-```
-
-Ces librairies nécessitent une configuration spécifique Android/iOS — voir leur documentation officielle.
-
----
+- [ ] Finaliser l'intégration de la recherche.
+- [ ] Ajouter la gestion des favoris.
+- [ ] Optimiser les performances du lecteur audio.
+- [ ] Améliorer le design des écrans de détails d'album.
