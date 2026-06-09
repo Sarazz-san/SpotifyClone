@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -23,10 +23,12 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export function LikedSongsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const {tracks} = useCatalog();
-  const {playQueue, currentTrack} = usePlayer();
+  const {playQueue, currentTrack, likedTrackIds} = usePlayer();
 
-  // Pour le moment, on simule les titres likés en prenant une partie du catalogue
-  const likedSongs = tracks.filter(t => t.id !== 'empty-catalog-track').slice(0, 5);
+  // Filtrer les titres du catalogue qui sont dans la liste des favoris
+  const likedSongs = useMemo(() => {
+    return tracks.filter(track => likedTrackIds.includes(track.id));
+  }, [tracks, likedTrackIds]);
 
   return (
     <View style={styles.container}>

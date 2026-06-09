@@ -48,6 +48,7 @@ type PlayerContextValue = {
   togglePlayback: () => Promise<void>;
   toggleRepeat: () => void;
   toggleShuffle: () => void;
+  likedTrackIds: string[];
 };
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
@@ -271,6 +272,7 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
       togglePlayback,
       toggleRepeat,
       toggleShuffle,
+      likedTrackIds,
     }),
     [
       currentTrack,

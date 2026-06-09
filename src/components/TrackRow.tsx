@@ -7,6 +7,8 @@ import {typography} from '../constants/typography';
 import type {Playlist} from '../models/Playlist';
 import type {Track} from '../models/Track';
 import {IconButton} from './IconButton';
+import {usePlayer} from '../features/player/PlayerContext';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 type Props = {
   item: Track | Playlist;
@@ -20,9 +22,12 @@ export function TrackRow({
   item,
   meta,
   roundCover = false,
-  trailingIcon = 'plus',
+  trailingIcon,
   onPress,
 }: Props) {
+  const {currentTrack, likedTrackIds} = usePlayer();
+  const isCurrent = 'artist' in item && item.id === currentTrack.id;
+  const isLiked = 'artist' in item && likedTrackIds.includes(item.id);
   const description =
     meta || ('artist' in item ? `${item.artist} - ${item.album}` : item.subtitle);
 
@@ -39,14 +44,26 @@ export function TrackRow({
         style={[styles.cover, roundCover ? styles.roundCover : null]}
       />
       <View style={styles.textStack}>
-        <Text numberOfLines={1} style={styles.title}>
+        <Text numberOfLines={1} style={[styles.title, isCurrent && {color: colors.primary}]}>
           {item.title}
         </Text>
         <Text numberOfLines={1} style={styles.meta}>
           {description}
         </Text>
       </View>
-      <IconButton name={trailingIcon} onPress={onPress} variant="plain" />
+      {isCurrent ? (
+        <Icon name="equalizer" size={20} color={colors.primary} style={{marginRight: spacing.sm}} />
+      ) : null}
+      {'artist' in item ? (
+        <Icon 
+          name={isLiked ? 'heart' : 'heart-outline'} 
+          size={20} 
+          color={isLiked ? colors.primary : colors.textMuted} 
+          style={{marginRight: spacing.sm}}
+        />
+      ) : (
+        <IconButton name={trailingIcon || 'chevron-right'} variant="plain" />
+      )}
     </Pressable>
   );
 }

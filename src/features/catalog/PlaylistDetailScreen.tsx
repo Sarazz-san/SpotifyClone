@@ -52,7 +52,7 @@ export function PlaylistDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <LinearGradient
-          colors={['#535353', colors.backgroundDeep]}
+          colors={[colors.surfaceHigh, colors.background]}
           style={styles.header}
         >
           <Image 
@@ -91,7 +91,7 @@ export function PlaylistDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundDeep,
+    backgroundColor: colors.background,
   },
   backButton: {
     position: 'absolute',
