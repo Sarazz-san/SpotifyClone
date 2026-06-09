@@ -29,7 +29,7 @@ export function SearchScreen() {
   const [isFocused, setIsFocused] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const {categories, tracks} = useCatalog();
-  const {playTrack} = usePlayer();
+  const {playTrack, playQueue} = usePlayer();
 
   useEffect(() => {
     if (user) return subscribeToSearchHistory(user.id, setHistory);
@@ -91,7 +91,7 @@ export function SearchScreen() {
                 item={track}
                 key={track.id}
                 onPress={() => {
-                  playTrack(track);
+                  playQueue(results, results.indexOf(track));
                   handleSearchSubmit();
                 }}
                 trailingIcon="play"
@@ -169,7 +169,7 @@ export function SearchScreen() {
               <TrackRow
                 item={track}
                 key={track.id}
-                onPress={() => playTrack(track)}
+                onPress={() => playQueue(results, results.indexOf(track))}
                 trailingIcon="play"
               />
             ))
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
   historyCover: {
     width: 52,
     height: 52,
-    borderRadius: radius.xs,
+    borderRadius: radius.sm,
     marginRight: spacing.md,
   },
   historyTitle: {

@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,7 +14,6 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {TrackRow} from '../../components/TrackRow';
 import {colors} from '../../constants/colors';
 import {radius, spacing} from '../../constants/spacing';
-import {typography} from '../../constants/typography';
 import {useCatalog} from '../catalog/CatalogContext';
 import {usePlayer} from '../player/PlayerContext';
 import type {RootStackParamList} from '../../app/navigationTypes';
@@ -25,18 +23,10 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export function LikedSongsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const {tracks} = useCatalog();
-  const {playTrack, currentTrack, toggleLike} = usePlayer();
+  const {playQueue, currentTrack} = usePlayer();
 
-  // In a real app, we'd fetch this from a 'likedTracks' collection
-  // For this version, we'll use the likedTrackIds from PlayerContext if we wanted to be perfectly accurate
-  // But let's assume we want to show all tracks that have been liked.
-  // Actually, let's just use the tracks that match the liked status.
-  
-  // Note: To be fully consistent, I should expose likedTrackIds from PlayerContext or a dedicated LikedContext.
-  // Given our current structure, let's filter tracks from catalog.
-  // (We'll assume for the demo that some tracks are pre-liked or we just show a placeholder if empty)
-  
-  const likedSongs = tracks.filter(t => t.id !== 'empty-catalog-track').slice(0, 3); // Mock for now, ideally use real IDs
+  // Pour le moment, on simule les titres likés en prenant une partie du catalogue
+  const likedSongs = tracks.filter(t => t.id !== 'empty-catalog-track').slice(0, 5);
 
   return (
     <View style={styles.container}>
@@ -49,39 +39,42 @@ export function LikedSongsScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <LinearGradient
-          colors={['#450af5', colors.backgroundDeep]}
+          colors={['#1DB954', colors.background]}
           style={styles.header}
           start={{x: 0, y: 0}}
           end={{x: 0, y: 1}}
         >
           <LinearGradient
-            colors={['#450af5', '#c4efd9']}
+            colors={['#1DB954', '#191414']}
             style={styles.coverPlaceholder}
             start={{x: 0, y: 0}}
             end={{x: 1, y: 1}}
           >
             <Icon name="heart" size={100} color={colors.white} />
           </LinearGradient>
-          <Text style={styles.title}>Titres likés</Text>
-          <Text style={styles.subtitle}>{likedSongs.length} titres</Text>
+          <Text style={styles.title}>Liked Songs</Text>
+          <Text style={styles.subtitle}>{likedSongs.length} songs</Text>
           
-          <TouchableOpacity style={styles.playButton} onPress={() => likedSongs[0] && playTrack(likedSongs[0])}>
+          <TouchableOpacity 
+            style={styles.playButton} 
+            onPress={() => likedSongs.length > 0 && playQueue(likedSongs)}
+          >
             <Icon name="play" size={32} color={colors.black} />
           </TouchableOpacity>
         </LinearGradient>
 
         <View style={styles.trackList}>
           {likedSongs.length > 0 ? (
-            likedSongs.map(track => (
+            likedSongs.map((track, index) => (
               <TrackRow
                 key={track.id}
                 item={track}
-                onPress={() => playTrack(track)}
+                onPress={() => playQueue(likedSongs, index)}
                 trailingIcon={track.id === currentTrack?.id ? 'equalizer' : 'heart'}
               />
             ))
           ) : (
-            <Text style={styles.emptyText}>Vos titres likés apparaîtront ici.</Text>
+            <Text style={styles.emptyText}>Your liked songs will appear here.</Text>
           )}
         </View>
       </ScrollView>
@@ -92,7 +85,7 @@ export function LikedSongsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundDeep,
+    backgroundColor: colors.background,
   },
   backButton: {
     position: 'absolute',
@@ -113,11 +106,14 @@ const styles = StyleSheet.create({
   coverPlaceholder: {
     width: 200,
     height: 200,
-    backgroundColor: 'linear-gradient(135deg, #450af5 0%, #c4efd9 100%)',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: radius.sm,
     elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 10},
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
   },
   title: {
     color: colors.white,

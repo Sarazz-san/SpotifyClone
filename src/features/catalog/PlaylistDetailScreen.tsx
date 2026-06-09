@@ -28,7 +28,7 @@ export function PlaylistDetailScreen() {
   const route = useRoute<PlaylistDetailRouteProp>();
   const {playlistId} = route.params;
   const {playlists, tracks} = useCatalog();
-  const {playTrack, currentTrack} = usePlayer();
+  const {playTrack, playQueue, currentTrack} = usePlayer();
 
   const playlist = playlists.find(p => p.id === playlistId);
   const playlistTracks = tracks.filter(t => playlist?.trackIds.includes(t.id));
@@ -36,7 +36,7 @@ export function PlaylistDetailScreen() {
   if (!playlist) {
     return (
       <View style={styles.container}>
-        <Text style={colors.text}>Playlist non trouvée</Text>
+        <Text style={{color: colors.text}}>Playlist non trouvée</Text>
       </View>
     );
   }
@@ -56,7 +56,7 @@ export function PlaylistDetailScreen() {
           style={styles.header}
         >
           <Image 
-            source={typeof playlist.cover === 'number' ? playlist.cover : {uri: playlist.coverUrl}} 
+            source={typeof playlist.cover === 'number' ? playlist.cover : {uri: (playlist as any).coverUrl || (playlist as any).cover?.uri}} 
             style={styles.cover} 
           />
           <Text style={styles.title}>{playlist.title}</Text>
@@ -67,7 +67,7 @@ export function PlaylistDetailScreen() {
               <Icon name="heart-outline" size={24} color={colors.textMuted} />
               <Text style={styles.infoText}>{playlistTracks.length} titres</Text>
             </View>
-            <TouchableOpacity style={styles.playButton} onPress={() => playlistTracks[0] && playTrack(playlistTracks[0])}>
+            <TouchableOpacity style={styles.playButton} onPress={() => playlistTracks.length > 0 && playQueue(playlistTracks)}>
               <Icon name="play" size={32} color={colors.black} />
             </TouchableOpacity>
           </View>
@@ -78,7 +78,7 @@ export function PlaylistDetailScreen() {
             <TrackRow
               key={track.id}
               item={track}
-              onPress={() => playTrack(track)}
+              onPress={() => playQueue(playlistTracks, playlistTracks.indexOf(track))}
               trailingIcon={track.id === currentTrack?.id ? 'equalizer' : 'dots-vertical'}
             />
           ))}

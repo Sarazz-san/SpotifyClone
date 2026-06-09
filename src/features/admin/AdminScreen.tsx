@@ -224,10 +224,10 @@ export function AdminScreen() {
   const renderDashboard = () => (
     <ScrollView contentContainerStyle={styles.scrollContent}>
       <View style={styles.statsGrid}>
-        <StatCard icon="music" label="Titres" value={stats.tracks} />
-        <StatCard icon="account-group" label="Users" value={stats.users} />
-        <StatCard icon="playlist-music" label="Listes" value={stats.playlists} />
-        <StatCard icon="shape" label="Genres" value={stats.categories} />
+        <StatCard iconName="music" label="Titres" value={stats.tracks} />
+        <StatCard iconName="account-group" label="Users" value={stats.users} />
+        <StatCard iconName="playlist-music" label="Listes" value={stats.playlists} />
+        <StatCard iconName="shape" label="Genres" value={stats.categories} />
       </View>
 
       <Text style={styles.sectionTitle}>Modules de Production</Text>
@@ -446,10 +446,10 @@ export function AdminScreen() {
   );
 }
 
-function StatCard({icon, label, value}: {icon: string; label: string; value: number}) {
+function StatCard({iconName, label, value}: {iconName: string; label: string; value: number}) {
   return (
     <View style={styles.statCard}>
-      <Icon name={icon} size={28} color={colors.primary} />
+      <Icon name={iconName} size={24} color={colors.primary} />
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -475,8 +475,8 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.white, fontSize: typography.title, fontWeight: '900', marginVertical: spacing.lg },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginBottom: spacing.xl },
   statCard: { width: '47%', backgroundColor: colors.surface, padding: spacing.lg, borderRadius: radius.lg, alignItems: 'center' },
-  statValue: { color: colors.white, fontSize: typography.h2, fontWeight: '900', marginTop: spacing.xs },
-  statLabel: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
+  statValue: { color: colors.white, fontSize: typography.display, fontWeight: '900', marginTop: spacing.sm },
+  statLabel: { color: colors.textMuted, fontSize: typography.label, fontWeight: '700' },
   menuBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.md },
   menuIconBox: { width: 44, height: 44, backgroundColor: colors.primaryDeep, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
   menuLabel: { flex: 1, color: colors.white, fontSize: typography.body, fontWeight: '800' },
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
   catPicker: { flexDirection: 'row' },
   catChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, backgroundColor: colors.surface, borderRadius: radius.full, marginRight: spacing.sm, borderWidth: 1, borderColor: colors.surface },
   activeChip: { borderColor: colors.primary, backgroundColor: colors.primaryDeep },
-  catText: { color: colors.white, fontSize: typography.caption, fontWeight: '800' },
+  catText: { color: colors.white, fontSize: typography.label, fontWeight: '800' },
   fileRow: { flexDirection: 'row', gap: spacing.md },
   fileBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.surface, padding: spacing.md, borderRadius: radius.md, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.textMuted },
   fileBtnText: { color: colors.white, fontSize: 11, flex: 1 },

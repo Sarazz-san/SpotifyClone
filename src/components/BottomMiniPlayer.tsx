@@ -31,15 +31,21 @@ export function BottomMiniPlayer() {
           {currentTrack.title}
         </Text>
         <Text numberOfLines={1} style={styles.artist}>
-          {playbackStatus === 'loading' ? 'Loading audio' : 'Wired Connection'}
+          {playbackStatus === 'loading' ? 'Loading...' : currentTrack.artist}
         </Text>
       </View>
       <Icon color={colors.primary} name="cellphone-sound" size={24} />
-      <IconButton name="plus-circle-outline" variant="plain" />
+      <IconButton 
+        name="heart-outline" 
+        variant="plain" 
+        color={colors.textMuted}
+      />
       <IconButton
         name={isPlaying ? 'pause' : 'play'}
         onPress={togglePlayback}
         variant="plain"
+        color={colors.white}
+        size={32}
       />
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, {width: `${progress * 100}%`}]} />
@@ -51,22 +57,25 @@ export function BottomMiniPlayer() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
+    left: spacing.sm,
+    right: spacing.sm,
     bottom: 76,
-    minHeight: 66,
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.sm,
+    padding: spacing.xs,
     borderRadius: radius.md,
-    backgroundColor: '#3c1f62',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: colors.surface,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   cover: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: radius.sm,
   },
   textStack: {
@@ -74,21 +83,23 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: typography.small,
+    fontSize: 13,
     fontWeight: '800',
   },
   artist: {
-    color: colors.primary,
-    fontSize: typography.label,
-    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 1,
   },
   progressTrack: {
     position: 'absolute',
-    left: spacing.sm,
-    right: spacing.sm,
+    left: spacing.xs,
+    right: spacing.xs,
     bottom: 0,
     height: 2,
-    backgroundColor: 'rgba(255,255,255,0.24)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
+    borderRadius: 1,
   },
   progressFill: {
     height: '100%',

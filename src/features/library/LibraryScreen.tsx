@@ -23,7 +23,7 @@ import {typography} from '../../constants/typography';
 import {useCatalog} from '../catalog/CatalogContext';
 import {usePlayer} from '../player/PlayerContext';
 import type {RootStackParamList} from '../../app/navigationTypes';
-import DocumentPicker from 'react-native-document-picker';
+import DocumentPicker, { types } from 'react-native-document-picker';
 import {uploadToCloudinary, createTrack} from '../admin/adminService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -36,7 +36,7 @@ export function LibraryScreen() {
   const [isAddMenuVisible, setIsAddMenuVisible] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const {playlists, tracks, refresh} = useCatalog();
-  const {playTrack} = usePlayer();
+  const {playTrack, playQueue, currentTrack} = usePlayer();
   
   const filteredPlaylists = playlists.filter(item => {
     if (activeFilter === 'Albums') return item.category === 'album';
@@ -68,14 +68,22 @@ export function LibraryScreen() {
 
   const handleImportMusic = async () => {
     try {
-      const result = await DocumentPicker.pick({
-        type: [DocumentPicker.types.audio],
+      // Fermer le menu pour éviter les conflits d'UI sur Android
+      setIsAddMenuVisible(false);
+      
+      const results = await DocumentPicker.pick({
+        type: [types.audio],
+        copyTo: 'cachesDirectory',
       });
 
-      const file = result[0];
+      const file = results[0];
+      if (!file) return;
+
       setIsImporting(true);
       
-      const audioUrl = await uploadToCloudinary(file.uri, 'auto');
+      // Utiliser fileCopyUri pour une URI stable
+      const targetUri = file.fileCopyUri || file.uri;
+      const audioUrl = await uploadToCloudinary(targetUri, 'auto');
       
       await createTrack({
         title: file.name || 'Imported Track',
@@ -153,7 +161,7 @@ export function LibraryScreen() {
           onPress={() => navigation.navigate('LikedSongs')}
         >
           <LinearGradient 
-            colors={['#450af5', '#c4efd9']} 
+            colors={['#1DB954', '#191414']} 
             style={styles.likedSongsIcon}
             start={{x: 0, y: 0}}
             end={{x: 1, y: 1}}
@@ -167,16 +175,19 @@ export function LibraryScreen() {
         </TouchableOpacity>
 
         {activeFilter === 'Artists' ? (
-          artists.map(track => (
-            <TrackRow
-              item={track}
-              key={track.id}
-              meta="Artist"
-              onPress={() => playTrack(track)}
-              roundCover
-              trailingIcon="chevron-right"
-            />
-          ))
+          artists.map(artist => {
+            const artistTracks = tracks.filter(t => t.artist === artist.id);
+            return (
+              <TrackRow
+                item={artist as any}
+                key={artist.id}
+                meta="Artist"
+                onPress={() => playQueue(artistTracks)}
+                roundCover
+                trailingIcon={artistTracks.some(t => t.id === currentTrack?.id) ? 'equalizer' : 'chevron-right'}
+              />
+            );
+          })
         ) : filteredPlaylists.length ? (
           filteredPlaylists.map(item => (
             <TrackRow

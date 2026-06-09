@@ -24,20 +24,23 @@ import {
 } from '../user/userService';
 
 type PlaybackStatus = 'idle' | 'loading' | 'ready' | 'error';
+export type RepeatMode = 'off' | 'all' | 'one';
 
 type PlayerContextValue = {
   currentTrack: Track;
   duration: number;
   isCurrentTrackLiked: boolean;
   isPlaying: boolean;
-  isRepeatEnabled: boolean;
+  repeatMode: RepeatMode;
   isShuffleEnabled: boolean;
   playbackError: string | null;
   playbackStatus: PlaybackStatus;
   position: number;
   hasPlayableAudio: boolean;
+  queue: Track[];
   next: () => Promise<void>;
-  playTrack: (track: Track) => Promise<void>;
+  playTrack: (track: Track, newQueue?: Track[]) => Promise<void>;
+  playQueue: (tracks: Track[], startIndex?: number) => Promise<void>;
   previous: () => Promise<void>;
   seekBy: (offset: number) => void;
   seekTo: (time: number) => void;
@@ -63,48 +66,67 @@ const emptyTrack: Track = {
 export function PlayerProvider({children}: {children: React.ReactNode}) {
   const audioRef = useRef<VideoRef>(null);
   const {user} = useAuth();
-  const {tracks} = useCatalog();
-  const [currentTrack, setCurrentTrack] = useState<Track>(tracks[0] || emptyTrack);
+  const {tracks: catalogTracks} = useCatalog();
+  
+  const [currentTrack, setCurrentTrack] = useState<Track>(catalogTracks[0] || emptyTrack);
+  const [queue, setQueue] = useState<Track[]>(catalogTracks.length > 0 ? catalogTracks : []);
   const [duration, setDuration] = useState(currentTrack.durationMs / 1000);
   const [isPlaying, setIsPlaying] = useState(false);
   const [likedTrackIds, setLikedTrackIds] = useState<string[]>([]);
-  const [isRepeatEnabled, setIsRepeatEnabled] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
   const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>('idle');
   const [position, setPosition] = useState(0);
+  
   const hasPlayableAudio = Boolean(currentTrack.audioUrl);
   const isCurrentTrackLiked = likedTrackIds.includes(currentTrack.id);
 
+  // Sync with catalog if empty or track disappears
   useEffect(() => {
-    if (!tracks.length) {
-      setCurrentTrack(emptyTrack);
-      setDuration(0);
-      setPosition(0);
-      setIsPlaying(false);
+    if (!catalogTracks.length) {
+      if (currentTrack.id !== emptyTrack.id) {
+        setCurrentTrack(emptyTrack);
+        setQueue([]);
+        setDuration(0);
+        setPosition(0);
+        setIsPlaying(false);
+      }
       return;
     }
 
-    if (!tracks.some(track => track.id === currentTrack.id)) {
-      const nextTrack = tracks[0];
-      setCurrentTrack(nextTrack);
-      setDuration(nextTrack.durationMs / 1000);
-      setPosition(0);
-      setIsPlaying(false);
+    // If current track is empty but catalog has tracks, pick the first one
+    if (currentTrack.id === emptyTrack.id && catalogTracks.length > 0) {
+      const firstTrack = catalogTracks[0];
+      setCurrentTrack(firstTrack);
+      setQueue(catalogTracks);
+      setDuration(firstTrack.durationMs / 1000);
     }
-  }, [currentTrack.id, tracks]);
+  }, [catalogTracks, currentTrack.id]);
 
   useEffect(() => subscribeToLikedTrackIds(user, setLikedTrackIds), [user]);
 
-  const playTrack = useCallback(async (track: Track) => {
+  const playTrack = useCallback(async (track: Track, newQueue?: Track[]) => {
     setCurrentTrack(track);
+    if (newQueue) {
+      setQueue(newQueue);
+    } else if (queue.length === 0) {
+      setQueue([track]);
+    }
+    
     setDuration(track.durationMs / 1000);
     setPlaybackError(null);
     setPlaybackStatus(track.audioUrl ? 'loading' : 'error');
     setPosition(0);
     setIsPlaying(Boolean(track.audioUrl));
     await saveRecentlyPlayed(user, track);
-  }, [user]);
+  }, [user, queue.length]);
+
+  const playQueue = useCallback(async (tracks: Track[], startIndex = 0) => {
+    if (!tracks.length) return;
+    const trackToPlay = tracks[startIndex] || tracks[0];
+    await playTrack(trackToPlay, tracks);
+  }, [playTrack]);
 
   const togglePlayback = useCallback(async () => {
     if (!hasPlayableAudio) {
@@ -112,7 +134,6 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
       setPlaybackError('Ce titre ne possède pas encore de fichier audio.');
       return;
     }
-
     setIsPlaying(currentValue => !currentValue);
   }, [hasPlayableAudio]);
 
@@ -144,7 +165,11 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
   }, [currentTrack, isCurrentTrackLiked, user]);
 
   const toggleRepeat = useCallback(() => {
-    setIsRepeatEnabled(currentValue => !currentValue);
+    setRepeatMode(current => {
+      if (current === 'off') return 'all';
+      if (current === 'all') return 'one';
+      return 'off';
+    });
   }, []);
 
   const toggleShuffle = useCallback(() => {
@@ -152,36 +177,49 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
   }, []);
 
   const next = useCallback(async () => {
-    if (!tracks.length) {
-      return;
-    }
+    const activeQueue = queue.length > 0 ? queue : catalogTracks;
+    if (!activeQueue.length) return;
 
-    if (isShuffleEnabled && tracks.length > 1) {
-      const candidates = tracks.filter(track => track.id !== currentTrack.id);
+    if (isShuffleEnabled && activeQueue.length > 1) {
+      const candidates = activeQueue.filter(track => track.id !== currentTrack.id);
       const randomIndex = Math.floor(Math.random() * candidates.length);
       await playTrack(candidates[randomIndex]);
       return;
     }
 
-    const index = tracks.findIndex(track => track.id === currentTrack.id);
-    const nextTrack = tracks[(index + 1) % tracks.length];
-    await playTrack(nextTrack);
-  }, [currentTrack.id, isShuffleEnabled, playTrack, tracks]);
+    const index = activeQueue.findIndex(track => track.id === currentTrack.id);
+    if (index === -1) {
+      await playTrack(activeQueue[0]);
+    } else if (index < activeQueue.length - 1) {
+      await playTrack(activeQueue[index + 1]);
+    } else if (repeatMode === 'all') {
+      await playTrack(activeQueue[0]);
+    } else {
+      setIsPlaying(false);
+      setPosition(0);
+    }
+  }, [currentTrack.id, isShuffleEnabled, playTrack, queue, catalogTracks, repeatMode]);
 
   const previous = useCallback(async () => {
-    if (!tracks.length) {
-      return;
-    }
-
     if (position > 3) {
       seekTo(0);
       return;
     }
 
-    const index = tracks.findIndex(track => track.id === currentTrack.id);
-    const previousIndex = index <= 0 ? tracks.length - 1 : index - 1;
-    await playTrack(tracks[previousIndex]);
-  }, [currentTrack.id, playTrack, position, seekTo, tracks]);
+    const activeQueue = queue.length > 0 ? queue : catalogTracks;
+    if (!activeQueue.length) return;
+
+    const index = activeQueue.findIndex(track => track.id === currentTrack.id);
+    if (index === -1) {
+      await playTrack(activeQueue[0]);
+    } else if (index > 0) {
+      await playTrack(activeQueue[index - 1]);
+    } else if (repeatMode === 'all') {
+      await playTrack(activeQueue[activeQueue.length - 1]);
+    } else {
+      seekTo(0);
+    }
+  }, [currentTrack.id, playTrack, position, seekTo, queue, catalogTracks, repeatMode]);
 
   const handleLoad = useCallback((data: OnLoadData) => {
     setDuration(data.duration || currentTrack.durationMs / 1000);
@@ -194,20 +232,19 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
   }, []);
 
   const handleEnd = useCallback(() => {
-    if (isRepeatEnabled) {
+    if (repeatMode === 'one') {
       seekTo(0);
       setIsPlaying(true);
       return;
     }
-
     next();
-  }, [isRepeatEnabled, next, seekTo]);
+  }, [repeatMode, next, seekTo]);
 
   const handleError = useCallback(() => {
     setIsPlaying(false);
     setPlaybackStatus('error');
     setPlaybackError(
-      'Lecture impossible. Vérifiez votre connexion internet.',
+      'Lecture impossible. Vérifiez votre fichier audio.',
     );
   }, []);
 
@@ -217,14 +254,16 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
       duration,
       isCurrentTrackLiked,
       isPlaying,
-      isRepeatEnabled,
+      repeatMode,
       isShuffleEnabled,
       playbackError,
       playbackStatus,
       position,
       hasPlayableAudio,
+      queue,
       next,
       playTrack,
+      playQueue,
       previous,
       seekBy,
       seekTo,
@@ -239,10 +278,11 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
       hasPlayableAudio,
       isCurrentTrackLiked,
       isPlaying,
-      isRepeatEnabled,
+      repeatMode,
       isShuffleEnabled,
       next,
       playTrack,
+      playQueue,
       playbackError,
       playbackStatus,
       position,
@@ -253,6 +293,7 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
       togglePlayback,
       toggleRepeat,
       toggleShuffle,
+      queue,
     ],
   );
 
@@ -269,7 +310,6 @@ export function PlayerProvider({children}: {children: React.ReactNode}) {
           onProgress={handleProgress}
           paused={!isPlaying}
           playInBackground
-          playWhenInactive
           progressUpdateInterval={500}
           ref={audioRef}
           source={{uri: currentTrack.audioUrl}}
@@ -291,10 +331,8 @@ const styles = {
 
 export function usePlayer() {
   const context = useContext(PlayerContext);
-
   if (!context) {
     throw new Error('usePlayer must be used inside PlayerProvider');
   }
-
   return context;
 }

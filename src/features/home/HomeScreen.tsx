@@ -17,7 +17,6 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {AlbumCard} from '../../components/AlbumCard';
 import {CategoryChip} from '../../components/CategoryChip';
 import {EmptyState} from '../../components/EmptyState';
-import {IconButton} from '../../components/IconButton';
 import {colors} from '../../constants/colors';
 import {radius, spacing} from '../../constants/spacing';
 import {typography} from '../../constants/typography';
@@ -46,17 +45,15 @@ export function HomeScreen() {
     categories,
     isLoading: isCatalogLoading,
     playlists,
-    refresh,
-    source,
     tracks: allTracks,
   } = useCatalog();
-  const {currentTrack, playTrack} = usePlayer();
+  const {currentTrack, playTrack, playQueue} = usePlayer();
   const [activeCategory, setActiveCategory] = useState('All');
   const [recentlyPlayed, setRecentlyPlayed] = useState<Track[]>([]);
 
   const quickItems: Array<Playlist | Track> = [...playlists, ...allTracks].slice(0, 8);
   const jumpBackItems = playlists.slice(0, 4);
-  const stationItems = [...allTracks, ...allTracks].slice(0, 5);
+  const stationItems = allTracks.slice(0, 10);
 
   useEffect(() => {
     if (user) return subscribeToRecentlyPlayed(user, setRecentlyPlayed);
@@ -64,7 +61,7 @@ export function HomeScreen() {
 
   const handleQuickPress = (item: Playlist | Track) => {
     if (isTrack(item)) {
-      playTrack(item);
+      playTrack(item, allTracks);
       return;
     }
 
@@ -155,7 +152,7 @@ export function HomeScreen() {
 
       {stationItems.length ? (
         <>
-          <Text style={styles.sectionTitle}>Recommended Stations</Text>
+          <Text style={styles.sectionTitle}>Recommended for you</Text>
           <FlatList
             ItemSeparatorComponent={CardGap}
             data={stationItems}
@@ -164,8 +161,8 @@ export function HomeScreen() {
             renderItem={({item}) => (
               <AlbumCard
                 item={item}
-                onPress={() => playTrack(item)}
-                subtitle={`${item.artist}, ${categories.slice(0, 2).join(', ')}`}
+                onPress={() => playQueue(stationItems, stationItems.indexOf(item))}
+                subtitle={`${item.artist}`}
               />
             )}
             showsHorizontalScrollIndicator={false}
@@ -189,8 +186,8 @@ export function HomeScreen() {
             renderItem={({item}) => (
               <AlbumCard
                 item={item}
-                onPress={() => playTrack(item)}
-                subtitle="Song • Spotify"
+                onPress={() => playQueue(recentlyPlayed, recentlyPlayed.indexOf(item))}
+                subtitle="Song"
               />
             )}
             showsHorizontalScrollIndicator={false}
@@ -204,7 +201,7 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundDeep,
+    backgroundColor: colors.background,
   },
   content: {
     padding: spacing.lg,
@@ -217,8 +214,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   avatar: {
-    width: 42,
-    height: 42,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.full,
@@ -226,7 +223,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: colors.white,
-    fontSize: typography.title,
+    fontSize: 14,
     fontWeight: '900',
   },
   chips: {
@@ -239,35 +236,35 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   quickCard: {
-    width: '48.7%',
-    minHeight: 64,
+    width: '48.5%',
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.sm,
+    borderRadius: 4,
     overflow: 'hidden',
     backgroundColor: colors.surface,
   },
   quickImage: {
-    width: 64,
-    height: 64,
+    width: 56,
+    height: 56,
   },
   quickTitle: {
     flex: 1,
     color: colors.text,
-    fontSize: typography.small,
+    fontSize: 12,
     fontWeight: '900',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
   sectionTitle: {
     color: colors.text,
-    fontSize: typography.headline,
+    fontSize: 22,
     fontWeight: '900',
     marginTop: spacing.xxl,
     marginBottom: spacing.md,
   },
   sectionTitleInline: {
     color: colors.text,
-    fontSize: typography.headline,
+    fontSize: 22,
     fontWeight: '900',
   },
   recentsHeader: {
@@ -279,10 +276,10 @@ const styles = StyleSheet.create({
   },
   showAll: {
     color: colors.textMuted,
-    fontSize: typography.small,
+    fontSize: 12,
     fontWeight: '900',
   },
   cardGap: {
-    width: spacing.lg,
+    width: spacing.md,
   },
 });

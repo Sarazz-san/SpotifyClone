@@ -8,7 +8,6 @@ import {colors} from '../../constants/colors';
 import {radius, spacing} from '../../constants/spacing';
 import {typography} from '../../constants/typography';
 import {IconButton} from '../../components/IconButton';
-import {useCatalog} from '../catalog/CatalogContext';
 import {usePlayer} from './PlayerContext';
 
 function formatTime(value: number) {
@@ -19,18 +18,18 @@ function formatTime(value: number) {
 
 export function PlayerScreen() {
   const navigation = useNavigation();
-  const {tracks} = useCatalog();
   const {
     currentTrack,
     duration,
     isCurrentTrackLiked,
     isPlaying,
-    isRepeatEnabled,
+    repeatMode,
     isShuffleEnabled,
     next,
     playbackError,
     playbackStatus,
     playTrack,
+    playQueue,
     position,
     previous,
     seekBy,
@@ -38,12 +37,17 @@ export function PlayerScreen() {
     togglePlayback,
     toggleRepeat,
     toggleShuffle,
+    queue,
   } = usePlayer();
   const progress = duration > 0 ? Math.min(position / duration, 1) : 0;
 
+  // Calculer les prochains titres basés sur la queue
+  const currentIndex = queue.findIndex(t => t.id === currentTrack.id);
+  const upNext = queue.slice(currentIndex + 1, currentIndex + 4);
+
   return (
     <LinearGradient
-      colors={[colors.surfaceHighest, colors.backgroundDeep, colors.background]}
+      colors={['#535353', colors.backgroundDeep, colors.background]}
       style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
@@ -51,11 +55,12 @@ export function PlayerScreen() {
             name="chevron-down"
             onPress={() => navigation.goBack()}
             variant="plain"
+            color={colors.white}
           />
           <Text style={styles.headerText}>Now playing</Text>
           <Icon
             color={playbackStatus === 'ready' ? colors.primary : colors.textMuted}
-            name={playbackStatus === 'loading' ? 'cloud-sync' : 'cloud-check'}
+            name={playbackStatus === 'loading' ? 'cloud-sync' : 'dots-horizontal'}
             size={24}
           />
         </View>
@@ -70,10 +75,11 @@ export function PlayerScreen() {
             <Text style={styles.artist}>{currentTrack.artist}</Text>
           </View>
           <IconButton
-            color={isCurrentTrackLiked ? colors.primary : colors.textMuted}
+            color={isCurrentTrackLiked ? colors.primary : colors.white}
             name={isCurrentTrackLiked ? 'heart' : 'heart-outline'}
             onPress={toggleLike}
             variant="plain"
+            size={32}
           />
         </View>
 
@@ -94,21 +100,35 @@ export function PlayerScreen() {
             name="shuffle"
             onPress={toggleShuffle}
             variant="plain"
+            size={28}
           />
-          <IconButton name="skip-previous" onPress={previous} size={34} variant="plain" />
+          <IconButton 
+            name="skip-previous" 
+            onPress={previous} 
+            size={42} 
+            variant="plain" 
+            color={colors.white}
+          />
           <Pressable onPress={togglePlayback} style={styles.playButton}>
             <Icon
               color={colors.black}
               name={isPlaying ? 'pause' : 'play'}
-              size={34}
+              size={42}
             />
           </Pressable>
-          <IconButton name="skip-next" onPress={next} size={34} variant="plain" />
+          <IconButton 
+            name="skip-next" 
+            onPress={next} 
+            size={42} 
+            variant="plain" 
+            color={colors.white}
+          />
           <IconButton
-            color={isRepeatEnabled ? colors.primary : colors.textMuted}
-            name="repeat"
+            color={repeatMode !== 'off' ? colors.primary : colors.textMuted}
+            name={repeatMode === 'one' ? 'repeat-once' : 'repeat'}
             onPress={toggleRepeat}
             variant="plain"
+            size={28}
           />
         </View>
 
@@ -123,33 +143,33 @@ export function PlayerScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Up next</Text>
-          {tracks.slice(0, 3).map(track => (
-            <Pressable
-              key={track.id}
-              onPress={() => playTrack(track)}
-              style={styles.queueRow}>
-              <Image source={track.cover} style={styles.queueCover} />
-              <View style={styles.queueText}>
-                <Text numberOfLines={1} style={styles.queueTitle}>
-                  {track.title}
-                </Text>
-                <Text numberOfLines={1} style={styles.queueArtist}>
-                  {track.artist}
-                </Text>
-              </View>
-              {track.id === currentTrack.id ? (
-                <Icon color={colors.primary} name="volume-high" size={20} />
-              ) : null}
-            </Pressable>
-          ))}
-        </View>
+        {upNext.length > 0 && (
+          <View style={styles.infoCard}>
+            <Text style={styles.infoTitle}>Up next</Text>
+            {upNext.map(track => (
+              <Pressable
+                key={track.id}
+                onPress={() => playQueue(queue, queue.indexOf(track))}
+                style={styles.queueRow}>
+                <Image source={track.cover} style={styles.queueCover} />
+                <View style={styles.queueText}>
+                  <Text numberOfLines={1} style={styles.queueTitle}>
+                    {track.title}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.queueArtist}>
+                    {track.artist}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        )}
+        
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>About {currentTrack.artist}</Text>
           <Text style={styles.infoText}>
             Lecture synchronisée avec le mini-player, les favoris et l’historique
-            Firestore.
+            Firestore. Design optimisé pour l'expérience Spotify originale.
           </Text>
         </View>
       </ScrollView>
@@ -172,20 +192,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerText: {
-    color: colors.textMuted,
-    fontSize: typography.label,
+    color: colors.white,
+    fontSize: 12,
     fontWeight: '900',
     textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   coverFrame: {
     alignItems: 'center',
     marginTop: spacing.xl,
+    paddingVertical: spacing.xl,
   },
   cover: {
-    width: '82%',
-    maxWidth: 320,
+    width: '100%',
     aspectRatio: 1,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 10},
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
   },
   metaRow: {
     flexDirection: 'row',
@@ -197,19 +223,20 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: typography.headline,
+    fontSize: 24,
     fontWeight: '900',
   },
   artist: {
     color: colors.textMuted,
-    fontSize: typography.body,
-    marginTop: spacing.xs,
+    fontSize: 16,
+    marginTop: 4,
+    fontWeight: '600',
   },
   progressTrack: {
-    height: 5,
+    height: 4,
     borderRadius: radius.full,
     overflow: 'hidden',
-    backgroundColor: colors.surfaceHighest,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     marginTop: spacing.xl,
   },
   progressFill: {
@@ -223,18 +250,15 @@ const styles = StyleSheet.create({
   },
   time: {
     color: colors.textMuted,
-    fontSize: typography.label,
-  },
-  statusText: {
-    color: colors.textMuted,
-    fontSize: typography.label,
-    marginTop: spacing.sm,
+    fontSize: 12,
+    fontWeight: '600',
   },
   errorText: {
     color: colors.danger,
-    fontSize: typography.label,
+    fontSize: 12,
     lineHeight: 17,
     marginTop: spacing.sm,
+    textAlign: 'center',
   },
   controls: {
     flexDirection: 'row',
@@ -243,11 +267,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   playButton: {
-    minWidth: 88,
-    minHeight: 64,
+    width: 72,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.full,
+    borderRadius: 36,
     backgroundColor: colors.white,
   },
   seekRow: {
@@ -257,46 +281,46 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   seekButton: {
-    minHeight: 38,
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
     borderRadius: radius.full,
     paddingHorizontal: spacing.lg,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   seekText: {
     color: colors.text,
-    fontSize: typography.label,
+    fontSize: 11,
     fontWeight: '800',
   },
   infoCard: {
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     padding: spacing.lg,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     marginTop: spacing.xl,
   },
   infoTitle: {
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: 16,
     fontWeight: '900',
   },
   infoText: {
     color: colors.textMuted,
-    fontSize: typography.small,
-    lineHeight: 21,
+    fontSize: 13,
+    lineHeight: 20,
     marginTop: spacing.sm,
   },
   queueRow: {
-    minHeight: 54,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     marginTop: spacing.md,
   },
   queueCover: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: radius.sm,
   },
   queueText: {
@@ -304,12 +328,11 @@ const styles = StyleSheet.create({
   },
   queueTitle: {
     color: colors.text,
-    fontSize: typography.small,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
   },
   queueArtist: {
     color: colors.textMuted,
-    fontSize: typography.label,
-    marginTop: 2,
+    fontSize: 12,
   },
 });

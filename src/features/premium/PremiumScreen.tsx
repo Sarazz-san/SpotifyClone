@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: colors.white,
-    fontSize: typography.subheading,
+    fontSize: typography.headline,
     fontWeight: '900',
     marginBottom: spacing.xs,
   },
@@ -169,8 +169,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   statusDescription: {
-    color: colors.textSecondary,
-    fontSize: typography.caption,
+    color: colors.textMuted,
+    fontSize: typography.label,
     lineHeight: 18,
   },
   seedButton: {

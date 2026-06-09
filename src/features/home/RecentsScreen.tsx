@@ -8,6 +8,7 @@ import {spacing, radius} from '../../constants/spacing';
 import {typography} from '../../constants/typography';
 import {useCatalog} from '../catalog/CatalogContext';
 import {CategoryChip} from '../../components/CategoryChip';
+import {usePlayer} from '../player/PlayerContext';
 
 import {useAuth} from '../auth/AuthContext';
 import {subscribeToRecentlyPlayed} from '../user/userService';
@@ -16,6 +17,7 @@ import type {Track} from '../../models/Track';
 export function RecentsScreen() {
   const navigation = useNavigation();
   const {user} = useAuth();
+  const {playQueue} = usePlayer();
   const [recentlyPlayed, setRecentlyPlayed] = React.useState<Track[]>([]);
 
   React.useEffect(() => {
@@ -40,8 +42,12 @@ export function RecentsScreen() {
         <Text style={styles.sectionTitle}>Today</Text>
 
         {recentlyPlayed.map((item, index) => (
-          <TouchableOpacity key={`${item.id}-${index}`} style={styles.itemRow}>
-            <Image source={typeof item.cover === 'number' ? item.cover : {uri: item.coverUrl}} style={styles.cover} />
+          <TouchableOpacity 
+            key={`${item.id}-${index}`} 
+            style={styles.itemRow}
+            onPress={() => playQueue(recentlyPlayed, index)}
+          >
+            <Image source={typeof item.cover === 'number' ? item.cover : {uri: (item as any).coverUrl || (item as any).cover?.uri}} style={styles.cover} />
             <View style={styles.itemInfo}>
               <Text style={styles.itemTitle}>{item.title}</Text>
               <Text style={styles.itemSubtitle}>Song • {item.artist}</Text>

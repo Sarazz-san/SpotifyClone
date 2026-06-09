@@ -27,7 +27,7 @@ const navigationTheme = {
     card: colors.background,
     primary: colors.primary,
     text: colors.text,
-    border: colors.surfaceHigh,
+    border: colors.surface,
   },
 };
 
@@ -37,7 +37,7 @@ export function AppNavigator() {
   const [routeName, setRouteName] = React.useState<string | undefined>();
 
   const onReady = () => {
-    setRouteName(navigationRef.getCurrentRoute()?.name);
+    setRouteName((navigationRef.getCurrentRoute() as any)?.name);
   };
 
   if (isInitializing) {
@@ -53,7 +53,7 @@ export function AppNavigator() {
       ref={navigationRef}
       onReady={onReady}
       onStateChange={() => {
-        setRouteName(navigationRef.getCurrentRoute()?.name);
+        setRouteName((navigationRef.getCurrentRoute() as any)?.name);
       }}
       theme={navigationTheme}
     >
