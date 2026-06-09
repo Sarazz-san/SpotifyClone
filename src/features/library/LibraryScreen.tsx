@@ -23,7 +23,7 @@ import {typography} from '../../constants/typography';
 import {useCatalog} from '../catalog/CatalogContext';
 import {usePlayer} from '../player/PlayerContext';
 import type {RootStackParamList} from '../../app/navigationTypes';
-import DocumentPicker, { types } from 'react-native-document-picker';
+import { pick, isErrorWithCode, errorCodes, keepLocalCopy } from '@react-native-documents/picker';
 import {uploadToCloudinary, createTrack} from '../admin/adminService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -71,9 +71,9 @@ export function LibraryScreen() {
       // Fermer le menu pour éviter les conflits d'UI sur Android
       setIsAddMenuVisible(false);
       
-      const results = await DocumentPicker.pick({
-        type: [types.audio],
-        copyTo: 'cachesDirectory',
+      const results = await pick({
+        type: ['audio/*'],
+        mode: 'import',
       });
 
       const file = results[0];
@@ -81,8 +81,16 @@ export function LibraryScreen() {
 
       setIsImporting(true);
       
-      // Utiliser fileCopyUri pour une URI stable
-      const targetUri = file.fileCopyUri || file.uri;
+      // Copy to local storage for a stable URI
+      const [localCopy] = await keepLocalCopy({
+        files: [{
+          uri: file.uri,
+          fileName: file.name || 'imported_audio.mp3',
+        }],
+        destination: 'cachesDirectory',
+      });
+
+      const targetUri = (localCopy?.status === 'success' ? localCopy.localUri : null) || file.uri;
       const audioUrl = await uploadToCloudinary(targetUri, 'auto');
       
       await createTrack({
@@ -98,7 +106,7 @@ export function LibraryScreen() {
       await refresh();
       Alert.alert('Succès', 'Votre musique a été importée avec succès.');
     } catch (err) {
-      if (!DocumentPicker.isCancel(err)) {
+      if (!(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)) {
         Alert.alert('Erreur', 'Impossible d’importer le fichier.');
       }
     } finally {

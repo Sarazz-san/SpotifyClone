@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import DocumentPicker from 'react-native-document-picker';
+import { pick, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
 import {launchImageLibrary} from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -136,10 +136,14 @@ export function AdminScreen() {
 
   const handlePickAudio = async () => {
     try {
-      const res = await DocumentPicker.pickSingle({type: [DocumentPicker.types.audio]});
-      setAudioFile({uri: res.uri, name: res.name || 'audio.mp3'});
+      const [res] = await pick({type: ['audio/*'], mode: 'import'});
+      if (res) {
+        setAudioFile({uri: res.uri, name: res.name || 'audio.mp3'});
+      }
     } catch (err) {
-      if (!DocumentPicker.isCancel(err)) Alert.alert('Erreur', 'Sélection échouée');
+      if (!(isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED)) {
+        Alert.alert('Erreur', 'Sélection échouée');
+      }
     }
   };
 
