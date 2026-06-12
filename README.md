@@ -1,113 +1,153 @@
-# ShakeUnlockApp
+# Violet Music — Spotify Clone
 
-Application React Native qui se déverrouille par **secousses** (seuil dynamique selon le jour de la semaine) ou par **empreinte digitale**.
+Application mobile **React Native (CLI)** inspirée de Spotify, avec un thème
+violet/sombre. Le backend est assuré par **Firebase** (authentification,
+Firestore, Storage), et l'application fonctionne avec des données de démo locales
+tant que la console Firebase n'est pas configurée.
+
+> Cible principale : **Android**. iOS est présent mais n'est pas la plateforme
+> de référence de ce projet.
 
 ---
 
-## 🚀 Installation et premier lancement
+## Fonctionnalités
+
+- **Authentification** email / mot de passe avec persistance de session
+- **Accueil** : playlists, mixes, écoutes récentes et mini-player
+- **Recherche** : champ de recherche, catégories, genres et résultats
+- **Bibliothèque** : playlists / albums sauvegardés, titres likés
+- **Lecteur plein écran** : lecture/pause, progression, précédent/suivant
+- **Détails** : playlist, artiste, catégorie, genre
+- **Création** de playlists et ajout de titres
+- **Espace Admin** : ajout de titres, catégories (avec image) et genres
+- **Premium** : écran d'abonnement (vitrine)
+
+---
+
+## Stack technique
+
+| Domaine | Technologie |
+|--------|-------------|
+| Framework | React Native `0.85.2` / React `19.2.3` |
+| Langage | TypeScript |
+| Navigation | `@react-navigation` (native-stack + bottom-tabs) |
+| Backend | Firebase (`@react-native-firebase` auth / firestore) |
+| UI | `react-native-linear-gradient`, `react-native-vector-icons` |
+| Lecture vidéo/audio | `react-native-video` |
+| Tests | Jest |
+
+---
+
+## Prérequis
+
+- **Node.js >= 22.11.0**
+- JDK 17 et le SDK Android (configurés pour le développement React Native)
+- Un émulateur Android ou un appareil physique
+
+Vérifier l'environnement :
+
+```bash
+node -v
+npx react-native doctor
+```
+
+---
+
+## Installation et lancement
 
 ```bash
 # 1. Cloner le dépôt
-git clone https://github.com/ton-compte/ShakeUnlockApp.git
-cd ShakeUnlockApp
+git clone https://github.com/Sarazz-san/SpotifyClone.git
+cd SpotifyClone
 
-# 2. Installer les dépendances
+# 2. Installer les dépendances (applique aussi les patches via patch-package)
 npm install
 
 # 3. Lancer Metro (dans un terminal)
-npx react-native start --reset-cache
+npm start
 
-# 4. Dans un autre terminal, lancer l'app
-npx react-native run-android
+# 4. Dans un autre terminal, lancer l'app Android
+npm run android
 ```
 
-> Sur un vrai appareil Android (USB) : exécute `adb reverse tcp:8081 tcp:8081` avant `run-android`
+> Sur un appareil Android branché en USB, exécuter
+> `adb reverse tcp:8081 tcp:8081` avant `npm run android`.
 
 ---
 
-## 📁 Structure et rôle des modules
+## Scripts npm
 
-Le projet est découpé en **5 modules indépendants** qui communiquent via un contrat (`src/shared/interfaces.js`).  
-Chaque module est développé sur sa propre branche.
-
-### 🔐 `lockManager`
-**Rôle** : Cœur de l'application. Gère l'état global (verrouillé / déverrouillé).  
-**Apport** : Tous les autres modules lisent ou modifient cet état. C'est lui qui décide si l'écran verrouillé ou déverrouillé s'affiche.  
-**Exporte** : `useLock()` (hook avec `isLocked`, `lock()`, `unlock()`)
-
-### 📳 `shakeDetector`
-**Rôle** : Détecte les secousses du téléphone et calcule le seuil requis selon le jour de la semaine.  
-**Apport** : Permet de déverrouiller l'app sans toucher l'écran. Quand le nombre de secousses atteint le seuil, il demande à `lockManager` de déverrouiller.  
-**Exporte** : `startListening()`, `stopListening()`
-
-### 👆 `fingerprintScanner`
-**Rôle** : Interface avec le capteur d'empreinte digitale du téléphone.  
-**Apport** : Offre une seconde méthode de déverrouillage, plus classique et sécurisée. En cas de succès, il demande à `lockManager` de déverrouiller.  
-**Exporte** : `scan()` (retourne une promesse), `isAvailable()`
-
-### 🎨 `ui`
-**Rôle** : Affiche l'interface utilisateur (écran verrouillé / déverrouillé).  
-**Apport** : Rend l'app visible et interactive. Il affiche l'état fourni par `lockManager` et expose le bouton "Reverrouiller". Il ne contient **pas** la logique de déverrouillage.  
-**Exporte** : `LockedScreen`, `UnlockedScreen`, `LockButton`
-
-### 🔗 `integration` (toi, lead)
-**Rôle** : Assemble tous les modules dans `App.js`.  
-**Apport** : C'est le chef d'orchestre. Il branche les détecteurs pour qu'ils appellent `unlock()`, connecte l'UI à `useLock()`, et fait en sorte que le bouton "Reverrouiller" appelle `lock()`.  
-**Exporte** : Rien de spécifique — c'est le point d'entrée final.
+| Script | Description |
+|--------|-------------|
+| `npm start` | Démarre le bundler Metro |
+| `npm run android` | Build et lance l'app sur Android |
+| `npm run ios` | Build et lance l'app sur iOS |
+| `npm test` | Exécute les tests Jest |
+| `npm run lint` | Analyse le code avec ESLint |
 
 ---
 
-## 🌿 Branches associées
+## Structure du projet
 
-| Module | Branche |
-|--------|---------|
-| `lockManager` | `feat/lock-manager` |
-| `shakeDetector` | `feat/shake-detector` |
-| `fingerprintScanner` | `feat/fingerprint` |
-| `ui` | `feat/ui` |
-| `integration` | `feat/integration` |
-
-```bash
-git checkout feat/nom-de-votre-module
+```text
+src/
+  app/          Navigation (AppNavigator, AuthNavigator, MainTabs)
+  assets/       Images et logos
+  components/   Composants réutilisables (TrackRow, AlbumCard, mini-player…)
+  constants/    Thème (couleurs, espacements, typographie)
+  features/     Fonctionnalités par domaine
+    admin/      Espace administrateur (catalogue, genres)
+    auth/       Connexion et contexte d'authentification
+    catalog/    Catalogue (playlists, artistes, catégories)
+    create/     Création de playlists
+    genre/      Écran par genre
+    home/       Accueil et écoutes récentes
+    library/    Bibliothèque et titres likés
+    player/     Lecteur et contexte de lecture
+    premium/    Écran d'abonnement
+    search/     Recherche
+    user/       Service utilisateur
+  firebase/     Configuration et helpers Firebase
+  models/       Types de données (Track, Playlist)
+  utils/        Utilitaires (parsing métadonnées, messages d'erreur)
 ```
 
----
-
-## 🧪 Tester son module indépendamment
-
-Chacun peut tester son module seul grâce aux mocks.
-
-**Exemple** : le module `ui` peut créer `src/mocks/mockLockManager.js` qui simule `useLock()` sans avoir besoin du vrai `lockManager`.
-
-```javascript
-// src/mocks/mockLockManager.js
-export const useMockLock = () => ({
-  isLocked: true,
-  lock: () => console.log('[mock] lock'),
-  unlock: () => console.log('[mock] unlock'),
-});
-```
-
-Puis dans son code, il remplace temporairement l'import du vrai module par le mock.
+L'arborescence des providers est définie dans `App.tsx` :
+`AuthProvider` → `CatalogProvider` → `PlayerProvider` → `AppNavigator`.
 
 ---
 
-## ⚠️ Règles d'or (pour éviter l'enfer à la fusion)
+## Configuration Firebase
 
-1. **Ne jamais** modifier le dossier d'un autre module.
-2. **Ne jamais** modifier `src/shared/interfaces.js` sans validation du groupe.
-3. **Committer régulièrement** sur sa propre branche.
-4. **Ne pas merger** sur `main` sans accord du lead.
+L'application tourne avec des **données de démo locales** par défaut, ce qui
+permet de construire l'UI et le flux audio avant que la console Firebase ne soit
+prête. Pour activer Firebase :
+
+1. Créer un projet Firebase.
+2. Ajouter une application Android avec le package `com.spotifyclone.mobile`.
+3. Télécharger `google-services.json` et le placer dans `android/app/`.
+4. Ajouter le classpath Google Services dans `android/build.gradle`.
+5. Appliquer `com.google.gms.google-services` dans `android/app/build.gradle`.
+6. Activer **Authentication (Email/Password)**, **Firestore** et **Storage**.
+
+> Ne jamais committer `google-services.json` ni les keystores de release.
+
+Plus de détails dans [`src/firebase/README.md`](src/firebase/README.md) et
+[`docs/firebase-music-catalog.md`](docs/firebase-music-catalog.md).
 
 ---
 
-## 🔧 Dépendances principales
+## Build APK
 
-```bash
-npm install react-native-biometrics   # pour fingerprintScanner
-npm install react-native-shake        # pour shakeDetector
-```
-
-Ces librairies nécessitent une configuration spécifique Android/iOS — voir leur documentation officielle.
+- **CI** : le workflow [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml)
+  produit des APK debug et release à chaque push / PR sur `master`.
+- **Local (release signé)** : suivre [`docs/RELEASE_GUIDE.md`](docs/RELEASE_GUIDE.md).
 
 ---
+
+## Documentation
+
+- [`docs/WALKTHROUGH_SPOTIFY_CLONE.md`](docs/WALKTHROUGH_SPOTIFY_CLONE.md) — guide complet du projet
+- [`docs/RELEASE_GUIDE.md`](docs/RELEASE_GUIDE.md) — génération d'un APK release signé
+- [`docs/NEXT_STEPS_APK_FIREBASE.md`](docs/NEXT_STEPS_APK_FIREBASE.md) — prochaines étapes APK / Firebase
+- [`docs/firebase-music-catalog.md`](docs/firebase-music-catalog.md) — modèle du catalogue Firebase
