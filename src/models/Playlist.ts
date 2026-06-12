@@ -8,4 +8,5 @@ export type Playlist = {
   trackIds: string[];
   category: 'playlist' | 'album' | 'podcast' | 'artist';
   pinned?: boolean;
+  ownerId?: string | null;
 };

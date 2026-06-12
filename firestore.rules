@@ -1,0 +1,91 @@
+rules_version = '2';
+
+// Security rules for Violet Music (Spotify clone).
+//
+// Goals:
+//  - A regular user is a regular user: they can manage ONLY their own data and
+//    cannot act in the global/admin space.
+//  - Private per-user data (likes, recently played, search history, followed
+//    artists) is readable/writable only by its owner.
+//  - User-created content (tracks, playlists) is owned by its creator; nobody
+//    else can edit or delete it.
+//  - Admin-only taxonomy (categories, genres, artists) is writable only by admins.
+//  - A user can never grant themselves the `isAdmin` flag; only an existing
+//    admin can promote/demote users.
+//
+// Note: the very first admin must be set manually from the Firebase console
+// (set `isAdmin: true` on the user document), since no admin exists initially.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // ── User profiles ──────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+
+      // A user may create their own profile but never with an admin flag.
+      allow create: if isOwner(userId)
+        && (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false);
+
+      // A user may update their own profile but cannot change their admin flag.
+      // Admins may update any user (e.g. to grant/revoke admin).
+      allow update: if isAdmin()
+        || (isOwner(userId)
+            && request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false));
+
+      allow delete: if isAdmin();
+
+      // Private per-user subcollections: likes, history, search, followed artists.
+      match /{collection}/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ── Global catalog (read filtered client-side by ownerId / userId) ──────
+    match /tracks/{trackId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin()
+        || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin()
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    match /playlists/{playlistId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin()
+        || (isSignedIn() && request.resource.data.ownerId == request.auth.uid);
+      allow update, delete: if isAdmin()
+        || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+    }
+
+    // ── Admin-managed taxonomy ─────────────────────────────────────────────
+    match /categories/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /genres/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /artists/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

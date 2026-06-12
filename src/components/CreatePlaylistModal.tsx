@@ -15,6 +15,7 @@ import { radius, spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
 import { createPlaylist } from '../features/admin/adminService';
 import { useCatalog } from '../features/catalog/CatalogContext';
+import { useAuth } from '../features/auth/AuthContext';
 
 type Props = {
   visible: boolean;
@@ -25,6 +26,7 @@ export function CreatePlaylistModal({ visible, onClose }: Props) {
   const [playlistName, setPlaylistName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const { refresh } = useCatalog();
+  const { user } = useAuth();
 
   const handleCreate = async () => {
     if (!playlistName.trim()) return;
@@ -33,9 +35,10 @@ export function CreatePlaylistModal({ visible, onClose }: Props) {
     try {
       await createPlaylist({
         title: playlistName.trim(),
-        subtitle: 'Created by User',
+        subtitle: user?.displayName ? `De ${user.displayName}` : 'Créée par vous',
         category: 'playlist',
         coverUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000&auto=format&fit=crop', // default cover
+        ownerId: user?.id ?? null,
       });
       await refresh();
       setPlaylistName('');

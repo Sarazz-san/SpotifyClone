@@ -87,3 +87,35 @@ service firebase.storage {
 ```
 
 À durcir avant tout usage hors TP.
+
+## Règles Firestore et isolation des données
+
+Le dépôt fournit désormais des règles de sécurité Firestore (`firestore.rules`)
+qui garantissent qu'un utilisateur reste un simple utilisateur :
+
+- les données privées (`users/{uid}` et ses sous-collections `likedTracks`,
+  `recentlyPlayed`, `searchHistory`, `followedArtists`) ne sont lisibles et
+  modifiables que par leur propriétaire ;
+- une playlist porte un champ `ownerId` : `null` = contenu officiel/admin visible
+  par tous, sinon l'`uid` du créateur. Seul le créateur (ou un admin) peut la
+  modifier/supprimer, et le chargement du catalogue filtre les playlists des
+  autres utilisateurs ;
+- de même, un titre importé porte un `userId` (privé à son auteur) ;
+- les collections d'administration (`categories`, `genres`, `artists`) ne sont
+  inscriptibles que par un admin ;
+- un utilisateur **ne peut pas** se donner le flag `isAdmin` : seule une
+  personne déjà admin peut promouvoir/rétrograder un compte.
+
+### Déploiement
+
+```bash
+npm install -g firebase-tools   # si nécessaire
+firebase login
+firebase deploy --only firestore:rules --project <ID_DU_PROJET>
+```
+
+### Premier administrateur
+
+Aucun admin n'existe au départ : ouvrez la console Firebase, ouvrez le document
+`users/<uid>` du compte voulu et ajoutez `isAdmin: true`. Ensuite, ce compte peut
+gérer les autres via l'onglet Admin de l'application.

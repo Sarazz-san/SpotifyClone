@@ -1,4 +1,4 @@
-import { getFirestore, collection, query, limit, getDocs, where } from '@react-native-firebase/firestore';
+import { getFirestore, collection, query, limit, getDocs } from '@react-native-firebase/firestore';
 
 import {firebaseCollections} from '../../firebase/firebaseCollections';
 import {isFirebaseConfigured} from '../../firebase/firebaseAvailability';
@@ -48,6 +48,7 @@ type FirestorePlaylist = {
   trackIds?: string[];
   category?: Playlist['category'];
   pinned?: boolean;
+  ownerId?: string | null;
 };
 
 const defaultCover = require('../../assets/images/logo_spotify_green.png');
@@ -84,6 +85,7 @@ function mapPlaylist(id: string, data: FirestorePlaylist): Playlist {
     trackIds: data.trackIds || [],
     category: data.category || 'playlist',
     pinned: !!data.pinned,
+    ownerId: data.ownerId ?? null,
   };
 }
 
@@ -111,8 +113,13 @@ export async function loadCatalog(userId?: string): Promise<Catalog> {
       !track.userId || track.userId === userId
     );
 
-    const firebasePlaylists = playlistsSnapshot.docs.map(document =>
+    const allPlaylists = playlistsSnapshot.docs.map(document =>
       mapPlaylist(document.id, document.data() as FirestorePlaylist),
+    );
+
+    // Public playlists (no ownerId) + playlists owned by the current user
+    const firebasePlaylists = allPlaylists.filter(playlist =>
+      !playlist.ownerId || playlist.ownerId === userId,
     );
 
     const firebaseCategories = categoriesSnapshot.docs

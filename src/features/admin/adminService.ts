@@ -196,11 +196,13 @@ export async function createPlaylist(playlistData: {
   subtitle: string;
   category: string;
   coverUrl: string;
+  ownerId?: string | null;
 }) {
   const db = getFirestore();
   const newPlaylistRef = doc(collection(db, firebaseCollections.playlists));
   await setDoc(newPlaylistRef, {
     ...playlistData,
+    ownerId: playlistData.ownerId ?? null,
     id: newPlaylistRef.id,
     trackIds: [],
     pinned: false,
